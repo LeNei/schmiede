@@ -1,0 +1,15 @@
+<html class="h-full bg-white">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    {% block head %}{% endblock %}
+  </head>
+  <body class="h-full">
+    <div id="content">{% block content %} {% endblock %}</div>
+  </body>
+</html>

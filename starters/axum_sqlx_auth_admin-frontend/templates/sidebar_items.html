@@ -1,0 +1,25 @@
+<nav class="flex flex-1 flex-col">
+  <ul role="list" class="flex flex-1 flex-col gap-y-7">
+    <li>
+      <ul role="list" class="-mx-2 space-y-1">
+        {% for item in crate::admin::templates::SIDEBAR_ITEMS %}
+        <li id="nav-item" class="group">
+          <a
+            href="{{ item.url }}"
+            hx-get="{{ item.url }}"
+            hx-push-url="{{ item.url }}"
+            hx-target="#page"
+            @click="openSidebar = false"
+            class="group-[.is-active]:!bg-gray-800 group-[.is-active]:!text-white text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+          >
+            <span class="w-6 h-6 shrink-0">
+              {{ item.icon|escape("none") }}
+            </span>
+            {{ item.name }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+  </ul>
+</nav>

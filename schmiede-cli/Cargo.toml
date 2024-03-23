@@ -1,0 +1,17 @@
+[package]
+name = "schmiede-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.80"
+askama = "0.12.1"
+chrono = "0.4.35"
+clap = { version = "4.5.1", features = ["derive"] }
+console = "0.15.8"
+convert_case = "0.6.0"
+dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
+strum = "0.26"
+strum_macros = "0.26"

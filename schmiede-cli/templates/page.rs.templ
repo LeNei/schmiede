@@ -1,0 +1,48 @@
+use super::{
+    common::TablePaginationParams,
+    middleware::SessionAuthMiddleware,
+    templates::{Form, FormInput, FormInputType, FormPage, TablePageBuilder},
+};
+use crate::common::{
+    context::ApiContext, response::ErrorResponse, traits::Displayable,
+};
+use axum::{
+    extract::{Path, Query, State},
+    response::IntoResponse,
+    routing::get,
+    Extension, Router,
+};
+use diesel_async::RunQueryDsl;
+
+async fn get_{{ function_name }}s(
+    Query(params): Query<TablePaginationParams>,
+    State(data): State<ApiContext>,
+    Extension(user): Extension<SessionAuthMiddleware>,
+) -> Result<impl IntoResponse, ErrorResponse> {
+    let mut conn = data.get_db_connection().await?;
+
+    let (offset, page_size, search_term) = params.to_query_params();
+
+    let rows = crate::common::models::{{ model_name }}::paginated(offset, page_size, search_term)
+        .load(&mut conn)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error fetching from database: {}", e);
+            ErrorResponse::custom_error_message("Error fetching from database")
+        })?;
+
+    Ok(TablePageBuilder::new()
+        .title("{{ model_name }}s")
+        .description("This page was created automatically")
+        .add_title("Add {{ model_name }}")
+        .url("/{{ route }}s")
+        .headers::<crate::common::models{{ model_name }}>()
+        .rows(&rows)
+        .use_sidebar(!user.is_hx)
+        .build())
+}
+
+pub fn routes() -> Router<ApiContext> {
+    Router::new()
+        .route("/{{ route }}s", get(get_{{ function_name }}s))
+}
