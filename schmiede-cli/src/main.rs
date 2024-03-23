@@ -1,5 +1,6 @@
 mod data_types;
 mod exporters;
+mod init;
 mod template;
 mod transformers;
 
@@ -38,6 +39,10 @@ fn main() -> Result<()> {
         Some(Commands::Init) => println!("Initializing..."),
         None => {}
     };
+    if generate {
+        init::initialize_starter("test")?;
+        return Ok(());
+    }
     let term = Term::buffered_stderr();
     let theme = ColorfulTheme::default();
 
