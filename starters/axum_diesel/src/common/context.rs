@@ -3,12 +3,10 @@ use crate::config::auth::AuthSettings;
 use crate::config::database::PgPool;
 use diesel_async::pooled_connection::deadpool::Object;
 use diesel_async::AsyncPgConnection;
-use redis::Client;
 
 #[derive(Clone)]
 pub struct ApiContext {
     pub db: PgPool,
-    pub redis_client: Client,
     pub auth_settings: AuthSettings,
 }
 

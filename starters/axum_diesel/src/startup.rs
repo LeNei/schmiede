@@ -16,7 +16,6 @@ pub async fn build(settings: Settings) -> Result<()> {
             .database
             .get_connection_pool()
             .context("Failed to connect to database")?,
-        redis_client: settings.redis.get_client()?.clone(),
         auth_settings: settings.auth,
     };
 

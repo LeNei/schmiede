@@ -2,18 +2,15 @@ pub mod app;
 pub mod auth;
 pub mod database;
 pub mod logging;
-pub mod redis;
 
 use app::ApplicationSettings;
 use auth::AuthSettings;
 use database::DatabaseSettings;
-use redis::RedisSettings;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
 pub struct Settings {
     pub database: DatabaseSettings,
-    pub redis: RedisSettings,
     pub application: ApplicationSettings,
     pub auth: AuthSettings,
 }

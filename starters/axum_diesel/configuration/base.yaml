@@ -8,5 +8,3 @@ database:
   password: "postgres"
   database_name: "backend"
   require_ssl: false
-redis:
-  host: "127.0.0.1"
