@@ -6,7 +6,7 @@ pub struct {{ struct_name }} {
 {%- match id %}
     {%- when IDType::Uuid %}
     pub id: uuid::Uuid,
-    {%- when IDType::Integer %}
+    {%- when IDType::Int %}
     pub id: i32,
     {%- when IDType::None %}
 {%- endmatch %}

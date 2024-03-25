@@ -1,24 +1,24 @@
-use std::{fmt::Display, str::FromStr};
-
 use anyhow::{Context, Result};
 use console::{style, Term};
+use convert_case::{Case, Casing};
 use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input};
+use std::{fmt::Display, str::FromStr};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Debug, EnumIter, Clone)]
 pub enum IDType {
     Uuid,
-    Integer,
+    Int,
     None,
 }
 
 impl Display for IDType {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            IDType::Uuid => write!(fmt, "Uuid"),
-            IDType::Integer => write!(fmt, "Integer"),
-            IDType::None => write!(fmt, "None"),
+            IDType::Uuid => write!(fmt, "uuid"),
+            IDType::Int => write!(fmt, "int"),
+            IDType::None => write!(fmt, "none"),
         }
     }
 }
@@ -27,9 +27,9 @@ impl FromStr for IDType {
     type Err = anyhow::Error;
     fn from_str(input: &str) -> Result<Self> {
         match input {
-            "Uuid" => Ok(IDType::Uuid),
-            "Integer" => Ok(IDType::Integer),
-            "None" => Ok(IDType::None),
+            "uuid" => Ok(IDType::Uuid),
+            "int" => Ok(IDType::Int),
+            "none" => Ok(IDType::None),
             _ => Err(anyhow::anyhow!("Invalid ID type")),
         }
     }
@@ -64,25 +64,25 @@ pub enum DataType {
 impl Display for DataType {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            DataType::Boolean => write!(fmt, "Boolean"),
-            DataType::SmallInt => write!(fmt, "SmallInt"),
-            DataType::Integer => write!(fmt, "Integer"),
-            DataType::BigInt => write!(fmt, "BigInt"),
-            DataType::Real => write!(fmt, "Real"),
-            DataType::DoublePrecision => write!(fmt, "DoublePrecision"),
-            DataType::Numeric(_, _) => write!(fmt, "Numeric"),
-            DataType::Char(_) => write!(fmt, "Char"),
-            DataType::VarChar(_) => write!(fmt, "VarChar",),
-            DataType::Text => write!(fmt, "Text"),
-            DataType::Bytea => write!(fmt, "Bytea"),
-            DataType::Timestamp => write!(fmt, "Timestamp"),
-            DataType::TimestampTZ => write!(fmt, "TimestampTZ"),
-            DataType::Date => write!(fmt, "Date"),
-            DataType::Time => write!(fmt, "Time"),
-            DataType::TimeTZ => write!(fmt, "TimeTZ"),
-            DataType::Interval => write!(fmt, "Interval"),
-            DataType::Jsonb => write!(fmt, "Jsonb"),
-            DataType::Uuid => write!(fmt, "Uuid"),
+            DataType::Boolean => write!(fmt, "bool"),
+            DataType::SmallInt => write!(fmt, "smallInt"),
+            DataType::Integer => write!(fmt, "int"),
+            DataType::BigInt => write!(fmt, "bigInt"),
+            DataType::Real => write!(fmt, "real"),
+            DataType::DoublePrecision => write!(fmt, "doublePrecision"),
+            DataType::Numeric(_, _) => write!(fmt, "numeric"),
+            DataType::Char(_) => write!(fmt, "char"),
+            DataType::VarChar(_) => write!(fmt, "varChar",),
+            DataType::Text => write!(fmt, "text"),
+            DataType::Bytea => write!(fmt, "bytea"),
+            DataType::Timestamp => write!(fmt, "timestamp"),
+            DataType::TimestampTZ => write!(fmt, "timestampTZ"),
+            DataType::Date => write!(fmt, "date"),
+            DataType::Time => write!(fmt, "time"),
+            DataType::TimeTZ => write!(fmt, "timeTZ"),
+            DataType::Interval => write!(fmt, "interval"),
+            DataType::Jsonb => write!(fmt, "jsonb"),
+            DataType::Uuid => write!(fmt, "uuid"),
         }
     }
 }
@@ -92,31 +92,61 @@ impl FromStr for DataType {
 
     fn from_str(str: &str) -> Result<Self> {
         match str {
-            "Boolean" => Ok(DataType::Boolean),
-            "SmallInt" => Ok(DataType::SmallInt),
-            "Integer" => Ok(DataType::Integer),
-            "BigInt" => Ok(DataType::BigInt),
-            "Real" => Ok(DataType::Real),
-            "DoublePrecision" => Ok(DataType::DoublePrecision),
-            "Numeric" => Ok(DataType::Numeric(0, 0)),
-            "Char" => Ok(DataType::Char(0)),
-            "VarChar" => Ok(DataType::VarChar(0)),
-            "Text" => Ok(DataType::Text),
-            "Bytea" => Ok(DataType::Bytea),
-            "Timestamp" => Ok(DataType::Timestamp),
-            "TimestampTZ" => Ok(DataType::TimestampTZ),
-            "Date" => Ok(DataType::Date),
-            "Time" => Ok(DataType::Time),
-            "TimeTZ" => Ok(DataType::TimeTZ),
-            "Interval" => Ok(DataType::Interval),
-            "Jsonb" => Ok(DataType::Jsonb),
-            "Uuid" => Ok(DataType::Uuid),
+            "bool" => Ok(DataType::Boolean),
+            "smallInt" => Ok(DataType::SmallInt),
+            "int" => Ok(DataType::Integer),
+            "bigInt" => Ok(DataType::BigInt),
+            "real" => Ok(DataType::Real),
+            "doublePrecision" => Ok(DataType::DoublePrecision),
+            "numeric" => Ok(DataType::Numeric(0, 0)),
+            "char" => Ok(DataType::Char(0)),
+            "varChar" => Ok(DataType::VarChar(0)),
+            "text" => Ok(DataType::Text),
+            "bytea" => Ok(DataType::Bytea),
+            "timestamp" => Ok(DataType::Timestamp),
+            "timestampTZ" => Ok(DataType::TimestampTZ),
+            "date" => Ok(DataType::Date),
+            "time" => Ok(DataType::Time),
+            "timeTZ" => Ok(DataType::TimeTZ),
+            "interval" => Ok(DataType::Interval),
+            "jsonb" => Ok(DataType::Jsonb),
+            "uuid" => Ok(DataType::Uuid),
             _ => Err(anyhow::anyhow!("Invalid data type")),
         }
     }
 }
 
-fn get_data_type(term: &Term, theme: &ColorfulTheme) -> Result<(String, DataType, bool)> {
+type FullDataType = (String, DataType, bool);
+
+pub fn get_data_types(term: &Term, theme: &ColorfulTheme) -> Result<Vec<FullDataType>> {
+    let mut stop = false;
+    let mut rows: Vec<(String, DataType, bool)> = vec![];
+
+    while !stop {
+        term.clear_screen().context("Failed to clear screen")?;
+        if !rows.is_empty() {
+            term.write_line("Current rows")
+                .context("Failed to write line")?;
+        }
+        for row in rows.iter() {
+            let mut res = format!("{}: {}", style(&row.0).cyan(), row.1);
+            if row.2 {
+                res.push_str(" (optional)");
+            }
+            term.write_line(&res).context("Failed to write line")?;
+        }
+        term.write_line("Create a new row")
+            .context("Failed to write line")?;
+        rows.push(get_data_type(term, theme)?);
+        stop = !Confirm::with_theme(theme)
+            .with_prompt("Do you want to create another row?")
+            .interact_on(term)
+            .context("Failed to get confirmation")?;
+    }
+    Ok(rows)
+}
+
+fn get_data_type(term: &Term, theme: &ColorfulTheme) -> Result<FullDataType> {
     let data_types = DataType::iter()
         .map(|p| p.to_string())
         .collect::<Vec<String>>();
@@ -168,30 +198,22 @@ fn get_data_type(term: &Term, theme: &ColorfulTheme) -> Result<(String, DataType
     Ok((name, data_type, optional))
 }
 
-pub fn get_data_types(term: &Term, theme: &ColorfulTheme) -> Result<Vec<(String, DataType, bool)>> {
-    let mut stop = false;
-    let mut rows: Vec<(String, DataType, bool)> = vec![];
-
-    while !stop {
-        term.clear_screen().context("Failed to clear screen")?;
-        if !rows.is_empty() {
-            term.write_line("Current rows")
-                .context("Failed to write line")?;
-        }
-        for row in rows.iter() {
-            let mut res = format!("{}: {}", style(&row.0).cyan(), row.1);
-            if row.2 {
-                res.push_str(" (optional)");
-            }
-            term.write_line(&res).context("Failed to write line")?;
-        }
-        term.write_line("Create a new row")
-            .context("Failed to write line")?;
-        rows.push(get_data_type(term, theme)?);
-        stop = !Confirm::with_theme(theme)
-            .with_prompt("Do you want to create another row?")
-            .interact_on(term)
-            .context("Failed to get confirmation")?;
+pub fn parse_cli_data_types(data_types: Vec<String>) -> Result<Vec<FullDataType>> {
+    let mut res = vec![];
+    for ty in data_types {
+        res.push(parse_cli_data_type(&ty)?);
     }
-    Ok(rows)
+    Ok(res)
+}
+
+fn parse_cli_data_type(data_type: &str) -> Result<FullDataType> {
+    let (name, mut data_type_definition) = data_type.split_once(":").unwrap();
+    let mut required = false;
+    if data_type_definition.ends_with("!") {
+        required = true;
+        data_type_definition = &data_type_definition[..data_type_definition.len() - 1];
+    }
+    let data_type = DataType::from_str(&data_type_definition.to_case(Case::Camel))?;
+
+    Ok((name.to_string(), data_type, required))
 }

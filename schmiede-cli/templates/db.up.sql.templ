@@ -2,7 +2,7 @@ CREATE TABLE {{ name|lower }} (
 {%- match id %}
   {%- when IDType::Uuid %}
   id UUID NOT NULL PRIMARY KEY DEFAULT (uuid_generate_v4()),
-  {%- when IDType::Integer %}
+  {%- when IDType::Int %}
   id SERIAL PRIMARY KEY,
   {%- when IDType::None %}
 {%- endmatch %}
