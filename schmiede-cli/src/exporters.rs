@@ -29,10 +29,7 @@ where
 
         if !struct_exists {
             // Append to the file
-            let mut file = OpenOptions::new()
-                .write(true)
-                .append(true)
-                .open(&file_path)?;
+            let mut file = OpenOptions::new().append(true).open(&file_path)?;
 
             let contents = self.render()?;
 
@@ -74,7 +71,6 @@ fn create_migration_file(name: &str, ty: &str, content: &[u8]) -> Result<()> {
     }
 
     let mut file = OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(file_path)?;
@@ -90,8 +86,8 @@ impl Export for PageTemplate<'_> {
 
         // Append to the file
         let mut file = OpenOptions::new()
-            .write(true)
             .create(true)
+            .truncate(false)
             .open(file_path)?;
 
         let contents = self.render()?;

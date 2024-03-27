@@ -1,8 +1,8 @@
-use crate::data_types::{get_data_types, parse_cli_data_types, DataType, IDType};
+use crate::data_types::{get_attributes, parse_cli_attributes, Attribute, DataType, IDType};
 use crate::exporters::Export;
 use crate::template::{DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
 use crate::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use console::Term;
 use convert_case::{Case, Casing};
@@ -19,7 +19,7 @@ const GENERATE_OPTIONS: [&str; 4] = [
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum GenerateOptions {
-    SQL,
+    Sql,
     Struct,
     Routes,
     Admin,
@@ -28,7 +28,7 @@ pub enum GenerateOptions {
 impl GenerateOptions {
     fn from_usize(index: usize) -> Result<Self> {
         match index {
-            0 => Ok(GenerateOptions::SQL),
+            0 => Ok(GenerateOptions::Sql),
             1 => Ok(GenerateOptions::Struct),
             2 => Ok(GenerateOptions::Routes),
             3 => Ok(GenerateOptions::Admin),
@@ -37,18 +37,51 @@ impl GenerateOptions {
     }
 }
 
+fn attributes_parser(attribute: &str) -> Result<String> {
+    let split_attribute = attribute.split(':');
+    if split_attribute.clone().count() != 2 {
+        anyhow::bail!(
+            "Wrong format of attribute. {} should be in the format of name:type",
+            attribute
+        );
+    }
+    for (index, word) in split_attribute.enumerate() {
+        let word = match word.ends_with('?') && index == 1 {
+            true => &word[..word.len() - 1],
+            false => &word,
+        };
+        for char in word.chars() {
+            if !char.is_ascii_alphabetic() {
+                anyhow::bail!("No number or special characters allowed: {}", char)
+            }
+        }
+        if index == 1 {
+            DataType::from_str(word).context(format!("{} is not a valid data type.", word))?;
+        }
+    }
+
+    Ok(attribute.to_string())
+}
+
 #[derive(Parser, Debug)]
 pub struct GenerateArgs {
     #[clap(short, long)]
+    /// Name of the generated files/data
     pub name: Option<String>,
 
     #[clap(short, long)]
+    /// Type of id
     pub id: Option<IDType>,
 
     #[clap(short, long, value_delimiter = ',')]
+    /// Options on what to generate
     pub options: Option<Vec<GenerateOptions>>,
 
-    #[clap(short, long, value_delimiter = ',', verbatim_doc_comment)]
+    #[clap(short, long, value_delimiter = ',', value_parser = attributes_parser)]
+    /// Attributes that the generated files should posses.
+    /// These are constructed as {name}:{type}.
+    /// Fox example: title:text.
+    /// You can add an question mark at the end if the attribute is optional.
     pub attributes: Option<Vec<String>>,
 }
 
@@ -83,35 +116,33 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
             .unwrap(),
     };
 
-    let id = match args.id {
+    let id: IDType = match args.id {
         Some(id) => id,
         None => {
             let id_options = IDType::iter()
                 .map(|x| x.to_string())
                 .collect::<Vec<String>>();
-            let id = Select::with_theme(&theme)
+            Select::with_theme(&theme)
                 .with_prompt("Does the table/entry have an primary id?")
                 .items(&id_options)
                 .interact_on(&term)
-                .unwrap();
-            IDType::from_str(id_options.get(id).unwrap())?
+                .unwrap()
+                .into()
         }
     };
 
-    let data_types = match args.attributes {
-        Some(attributes) => parse_cli_data_types(attributes)?,
-        None => get_data_types(&term, &theme)?,
+    let attributes = match args.attributes {
+        Some(attributes) => parse_cli_attributes(attributes)?,
+        None => get_attributes(&term, &theme)?,
     };
 
-    println!("{:?}", data_types);
-    return Ok(());
     for export_option in selected_options {
         match export_option {
-            GenerateOptions::SQL => {
+            GenerateOptions::Sql => {
                 let name = &name.to_case(Case::Snake);
                 let up_template = DbUpTemplate {
                     name,
-                    rows: get_rows(&data_types, export_option),
+                    rows: get_rows(&attributes, export_option),
                     id: id.clone(),
                 };
                 let down_template = DbDownTemplate { name };
@@ -123,7 +154,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                     id: id.clone(),
                     name: &name,
                     struct_name: &name.to_case(Case::Pascal),
-                    rows: get_rows(&data_types, export_option),
+                    rows: get_rows(&attributes, export_option),
                 };
                 model_template.export()?;
             }
@@ -143,9 +174,9 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
     Ok(())
 }
 
-fn get_rows(data_types: &Vec<(String, DataType, bool)>, option: GenerateOptions) -> Vec<String> {
+fn get_rows(data_types: &[Attribute], option: GenerateOptions) -> Vec<String> {
     let transformer: Box<dyn DataTypeTransformer> = match option {
-        GenerateOptions::SQL => Box::new(PostgresMigration {}),
+        GenerateOptions::Sql => Box::new(PostgresMigration {}),
         GenerateOptions::Struct => Box::new(RustStruct {}),
         _ => return vec![],
     };

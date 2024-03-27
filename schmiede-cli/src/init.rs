@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
-use git2;
 use std::fs;
 use std::path::Path;
 
@@ -48,11 +47,11 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
                 .items(&STARTER_NAMES)
                 .interact_on(&term)
                 .unwrap();
-            STARTER_NAMES[id as usize]
+            STARTER_NAMES[id]
         }
     };
 
-    create_starter(&project_name, &starter_name)
+    create_starter(&project_name, starter_name)
 }
 
 pub fn create_starter(project_name: &str, template_name: &str) -> Result<()> {
