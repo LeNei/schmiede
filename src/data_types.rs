@@ -1,10 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::ValueEnum;
-use console::{style, Term};
 use convert_case::{Case, Casing};
-use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input};
 use std::{fmt::Display, str::FromStr};
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Debug, EnumIter, Clone, ValueEnum)]
@@ -35,7 +32,7 @@ impl From<usize> for IDType {
     }
 }
 
-#[derive(Debug, EnumIter)]
+#[derive(Debug, Clone, EnumIter)]
 pub enum DataType {
     // Common Types
     Boolean,
@@ -141,105 +138,4 @@ impl From<usize> for DataType {
             _ => panic!("False id"),
         }
     }
-}
-
-pub type Attribute = (String, DataType, bool);
-
-pub fn get_attributes(term: &Term, theme: &ColorfulTheme) -> Result<Vec<Attribute>> {
-    let mut stop = false;
-    let mut attributes: Vec<Attribute> = vec![];
-
-    while !stop {
-        term.clear_screen().context("Failed to clear screen")?;
-        if !attributes.is_empty() {
-            term.write_line("Current rows")
-                .context("Failed to write line")?;
-        }
-        for row in attributes.iter() {
-            let mut res = format!("{}: {}", style(&row.0).cyan(), row.1);
-            if row.2 {
-                res.push_str(" (optional)");
-            }
-            term.write_line(&res).context("Failed to write line")?;
-        }
-        term.write_line("Create a new row")
-            .context("Failed to write line")?;
-        attributes.push(get_attribute(term, theme)?);
-        stop = !Confirm::with_theme(theme)
-            .with_prompt("Do you want to create another row?")
-            .interact_on(term)
-            .context("Failed to get confirmation")?;
-    }
-    Ok(attributes)
-}
-
-fn get_attribute(term: &Term, theme: &ColorfulTheme) -> Result<Attribute> {
-    let data_types = DataType::iter()
-        .map(|p| p.to_string())
-        .collect::<Vec<String>>();
-
-    let name: String = Input::with_theme(theme)
-        .with_prompt("Set your field name")
-        .interact_on(term)
-        .context("Failed to get field name")?;
-
-    let data_type: DataType = FuzzySelect::with_theme(theme)
-        .with_prompt("Pick a data type")
-        .items(&data_types)
-        .interact_on(term)
-        .context("Failed to get data type")?
-        .into();
-
-    let optional = Confirm::with_theme(theme)
-        .with_prompt("Is this field optional?")
-        .interact_on(term)
-        .context("Failed to get optional")?;
-
-    let data_type = match data_type {
-        DataType::Numeric(_, _) => {
-            let precision: u32 = Input::with_theme(theme)
-                .with_prompt("Set precision")
-                .interact_on(term)
-                .context("Failed to get precision")?;
-            let scale: u32 = Input::with_theme(theme)
-                .with_prompt("Set scale")
-                .interact_on(term)
-                .context("Failed to get scale")?;
-            DataType::Numeric(precision, scale)
-        }
-        DataType::Char(_) | DataType::VarChar(_) => {
-            let length: u32 = Input::with_theme(theme)
-                .with_prompt("Set length")
-                .interact_on(term)
-                .context("Failed to get length")?;
-
-            match data_type {
-                DataType::VarChar(_) => DataType::VarChar(length),
-                DataType::Char(_) => DataType::Char(length),
-                _ => data_type,
-            }
-        }
-        _ => data_type,
-    };
-    Ok((name, data_type, optional))
-}
-
-pub fn parse_cli_attributes(data_types: Vec<String>) -> Result<Vec<Attribute>> {
-    let mut res = vec![];
-    for ty in data_types {
-        res.push(parse_cli_attribute(&ty)?);
-    }
-    Ok(res)
-}
-
-fn parse_cli_attribute(data_type: &str) -> Result<Attribute> {
-    let (name, mut data_type_definition) = data_type.split_once(':').unwrap();
-    let mut required = true;
-    if data_type_definition.ends_with('?') {
-        required = false;
-        data_type_definition = &data_type_definition[..data_type_definition.len() - 1];
-    }
-    let data_type = DataType::from_str(&data_type_definition)?;
-
-    Ok((name.to_string(), data_type, required))
 }

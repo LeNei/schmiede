@@ -1,4 +1,5 @@
 use crate::data_types::DataType;
+use convert_case::{Case, Casing};
 
 pub trait DataTypeTransformer {
     fn get_type(&self, row_type: &DataType) -> String;
@@ -34,11 +35,15 @@ impl DataTypeTransformer for RustStruct {
     }
 
     fn get_row(&self, row_type: &DataType, name: &str) -> String {
-        format!("{}: {}", name, self.get_type(row_type))
+        format!("{}: {}", name.to_case(Case::Snake), self.get_type(row_type))
     }
 
     fn get_optional_row(&self, row_type: &DataType, name: &str) -> String {
-        format!("{}: Option<{}>", name, self.get_type(row_type))
+        format!(
+            "{}: Option<{}>",
+            name.to_case(Case::Snake),
+            self.get_type(row_type)
+        )
     }
 }
 
@@ -72,10 +77,14 @@ impl DataTypeTransformer for PostgresMigration {
     }
 
     fn get_row(&self, row_type: &DataType, name: &str) -> String {
-        format!("{} {} NOT NULL", name, self.get_type(row_type))
+        format!(
+            "{} {} NOT NULL",
+            name.to_case(Case::Snake),
+            self.get_type(row_type)
+        )
     }
 
     fn get_optional_row(&self, row_type: &DataType, name: &str) -> String {
-        format!("{} {}", name, self.get_type(row_type))
+        format!("{} {}", name.to_case(Case::Snake), self.get_type(row_type))
     }
 }

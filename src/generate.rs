@@ -1,13 +1,13 @@
-use crate::data_types::{get_attributes, parse_cli_attributes, Attribute, DataType, IDType};
+use crate::attribute::{get_term_attributes, Attribute};
+use crate::data_types::IDType;
 use crate::exporters::Export;
 use crate::template::{DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
 use crate::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use convert_case::{Case, Casing};
 use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
-use std::str::FromStr;
 use strum::IntoEnumIterator;
 
 const GENERATE_OPTIONS: [&str; 4] = [
@@ -37,32 +37,6 @@ impl GenerateOptions {
     }
 }
 
-fn attributes_parser(attribute: &str) -> Result<String> {
-    let split_attribute = attribute.split(':');
-    if split_attribute.clone().count() != 2 {
-        anyhow::bail!(
-            "Wrong format of attribute. {} should be in the format of name:type",
-            attribute
-        );
-    }
-    for (index, word) in split_attribute.enumerate() {
-        let word = match word.ends_with('?') && index == 1 {
-            true => &word[..word.len() - 1],
-            false => &word,
-        };
-        for char in word.chars() {
-            if !char.is_ascii_alphabetic() {
-                anyhow::bail!("No number or special characters allowed: {}", char)
-            }
-        }
-        if index == 1 {
-            DataType::from_str(word).context(format!("{} is not a valid data type.", word))?;
-        }
-    }
-
-    Ok(attribute.to_string())
-}
-
 #[derive(Parser, Debug)]
 pub struct GenerateArgs {
     #[clap(short, long)]
@@ -77,12 +51,12 @@ pub struct GenerateArgs {
     /// Options on what to generate
     pub options: Option<Vec<GenerateOptions>>,
 
-    #[clap(short, long, value_delimiter = ',', value_parser = attributes_parser)]
+    #[clap(short, long, value_delimiter = ',', value_parser = Attribute::from_str, verbatim_doc_comment)]
     /// Attributes that the generated files should posses.
     /// These are constructed as {name}:{type}.
     /// Fox example: title:text.
     /// You can add an question mark at the end if the attribute is optional.
-    pub attributes: Option<Vec<String>>,
+    pub attributes: Option<Vec<Attribute>>,
 }
 
 pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
@@ -132,8 +106,8 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
     };
 
     let attributes = match args.attributes {
-        Some(attributes) => parse_cli_attributes(attributes)?,
-        None => get_attributes(&term, &theme)?,
+        Some(attributes) => attributes,
+        None => get_term_attributes(&term, &theme)?,
     };
 
     for export_option in selected_options {
@@ -174,20 +148,20 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
     Ok(())
 }
 
-fn get_rows(data_types: &[Attribute], option: GenerateOptions) -> Vec<String> {
+fn get_rows(attributes: &[Attribute], option: GenerateOptions) -> Vec<String> {
     let transformer: Box<dyn DataTypeTransformer> = match option {
         GenerateOptions::Sql => Box::new(PostgresMigration {}),
         GenerateOptions::Struct => Box::new(RustStruct {}),
         _ => return vec![],
     };
 
-    data_types
+    attributes
         .iter()
-        .map(|(name, data_type, optional)| {
-            if *optional {
-                transformer.get_optional_row(data_type, &name.to_case(Case::Snake))
+        .map(|attribute| {
+            if attribute.optional {
+                transformer.get_optional_row(&attribute.data_type, &attribute.name)
             } else {
-                transformer.get_row(data_type, &name.to_case(Case::Snake))
+                transformer.get_row(&attribute.data_type, &attribute.name)
             }
         })
         .collect()

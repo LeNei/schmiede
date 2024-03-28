@@ -1,3 +1,4 @@
+mod attribute;
 mod data_types;
 mod exporters;
 mod generate;
