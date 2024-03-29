@@ -1,88 +1,109 @@
-use axum::{
-    extract::{State, Path},
-    routing::{post, get, put, delete},
-    Json,
-    Router,
+use crate::common::{
+    context::ApiContext,
+    models::{New{{ struct_name }}, {{ struct_name }}, Update{{ struct_name}}},
+    response::ErrorResponse,
 };
-use super::ApiContext;
-use chrono::{DateTime, Utc};
+use axum::{
+    extract::{Path, State},
+    routing::get,
+    Json, Router,
+};
 use hyper::StatusCode;
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use crate::helpers::response::ErrorResponse; 
 
+pub async fn get_{{ name|lower }}s(State(ctx): State<ApiContext>) -> Result<Json<Vec<{{ struct_name }}>>, ErrorResponse> {
+    use crate::schema::{{ name|lower }}::dsl::*;
+    use diesel_async::RunQueryDsl;
 
-#[derive(Debug, Serialize, FromRow)]
-#[serde(rename_all = "camelCase")]
-struct {{ struct_name }} {
-    {%- if has_id %}
-    id: i32,
-    {%- endif %}
-    {%- for row in rows %}
-    {{ row }},
-    {%- endfor %}
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    let mut conn = ctx.get_db_connection().await?;
+
+    let {{ name|lower }}s: Vec<{{ struct_name }}> = {{ name|lower }}.load(&mut conn).await.map_err(ErrorResponse::from)?;
+
+    Ok(Json({{ name|lower }}s))
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct New{{ struct_name }} {
-    {%- for row in rows %}
-    {{ row }},
-    {%- endfor %}
+async fn get_{{ name|lower }}(
+    State(ctx): State<ApiContext>,
+    Path({{ name|lower }}_id): Path<i32>,
+) -> Result<Json<{{ struct_name }}>, ErrorResponse> {
+    use crate::schema::{{ name|lower }}::dsl::*;
+    use diesel::prelude::*;
+    use diesel_async::RunQueryDsl;
+
+    let mut conn = ctx.get_db_connection().await?;
+
+    let found_{{ name|lower }} = {{ name|lower }}
+        .find({{ name|lower }}_id)
+        .first(&mut conn)
+        .await
+        .map_err(ErrorResponse::from)?;
+
+    Ok(Json(found_{{ name|lower }}))
 }
 
-#[tracing::instrument(name = "Add new {{ struct_name }}", skip(data))]
-async fn new_{{ function_name }}(
-    State(data): State<ApiContext>,
+async fn new_{{ name|lower }}(
+    State(ctx): State<ApiContext>,
     Json(body): Json<New{{ struct_name }}>,
 ) -> Result<(StatusCode, Json<{{ struct_name }}>), ErrorResponse> {
-    //Add code to insert new {{ struct_name }} here
-    todo!()
+    use crate::schema::{{ name|lower }}::dsl::*;
+    use diesel::prelude::*;
+    use diesel_async::RunQueryDsl;
+
+    let mut conn = ctx.get_db_connection().await?;
+
+    let new_{{ name|lower }} = diesel::insert_into({{ name|lower }})
+        .values(body)
+        .returning({{ struct_name }}::as_returning())
+        .get_result(&mut conn)
+        .await
+        .map_err(ErrorResponse::from)?;
+
+    Ok((StatusCode::CREATED, Json(new_{{ name|lower }})))
 }
 
-#[tracing::instrument(name = "Get {{ struct_name }}", skip(data))]
-async fn get_{{ function_name }}(
-    State(data): State<ApiContext>,
-    Path(id): Path<i32>,
-) -> Result<(StatusCode, Json<{{ struct_name }}>), ErrorResponse> {
-    //Add code to get {{ struct_name }} here
-    todo!()
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Update{{ struct_name }} {
-    {%- for row in edit_rows %}
-    {{ row }},
-    {%- endfor %}
-}
-
-#[tracing::instrument(name = "Update {{ struct_name }}", skip(data))]
-async fn update_{{ function_name }}(
-    State(data): State<ApiContext>,
-    Path(id): Path<i32>,
+async fn update_post(
+    State(ctx): State<ApiContext>,
+    Path({{ name|lower }}_id): Path<i32>,
     Json(body): Json<Update{{ struct_name }}>,
-) -> Result<(StatusCode, Json<{{ struct_name }}>), ErrorResponse> {
-    //Add code to update {{ struct_name }} here
-    todo!()
+) -> Result<Json<{{ struct_name }}>, ErrorResponse> {
+    use crate::schema::{{ name|lower }}::dsl::*;
+    use diesel::prelude::*;
+    use diesel_async::RunQueryDsl;
+
+    let mut conn = ctx.get_db_connection().await?;
+
+    let updated_{{ name|lower }} = diesel::update({{ name|lower }}.find({{ name|lower }}_id))
+        .set(body)
+        .returning({{ struct_name }}::as_returning())
+        .get_result(&mut conn)
+        .await
+        .map_err(ErrorResponse::from)?;
+
+    Ok(Json(updated_{{ name|lower }}))
 }
 
-#[tracing::instrument(name = "Update {{ struct_name }}", skip(data))]
-async fn delete_{{ function_name }}(
-    State(data): State<ApiContext>,
-    Path(id): Path<i32>,
+async fn delete_post(
+    State(ctx): State<ApiContext>,
+    Path({{ name|lower }}_id): Path<i32>,
 ) -> Result<StatusCode, ErrorResponse> {
-    //Add code to delete {{ struct_name }} here
-    todo!()
+    use crate::schema::{{ name|lower }}::dsl::*;
+    use diesel::prelude::*;
+    use diesel_async::RunQueryDsl;
+
+    let mut conn = ctx.get_db_connection().await?;
+
+    diesel::delete({{ name|lower }}.find(post_id))
+        .execute(&mut conn)
+        .await
+        .map_err(ErrorResponse::from)?;
+
+    Ok(StatusCode::ACCEPTED)
 }
 
 pub fn routes() -> Router<ApiContext> {
     Router::new()
-        .route("/{{ function_name }}", post(new_{{ function_name }}))
-        .route("/{{ function_name }}/:{{ function_name }}_id", get(get_{{ function_name }}))
-        .route("/{{ function_name }}/:{{ function_name }}_id", put(update_{{ function_name }}))
-        .route("/{{ function_name }}/:{{ function_name }}_id", delete(delete_{{ function_name }}))
+        .route("/", get(get_{{ name|lower }}s).post(new_{{ name|lower }}))
+        .route(
+            "/:{{ name|lower }}_id",
+            get(get_{{ name|lower }}).patch(update_{{ name|lower }}).delete(delete_{{ name|lower }}),
+        )
 }

@@ -1,10 +1,8 @@
 pub mod app;
-pub mod auth;
 pub mod database;
 pub mod logging;
 
 use app::ApplicationSettings;
-use auth::AuthSettings;
 use database::DatabaseSettings;
 use serde::Deserialize;
 
@@ -12,7 +10,6 @@ use serde::Deserialize;
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
-    pub auth: AuthSettings,
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {

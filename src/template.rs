@@ -52,14 +52,10 @@ pub struct PageTemplate<'a> {
     pub model_name: &'a str,
     pub route: &'a str,
 }
-/*
+
 #[derive(Template)]
-#[template(path = "api.rs", escape = "none")]
+#[template(path = "api.rs.templ", escape = "html")]
 pub struct ApiTemplate<'a> {
+    pub name: &'a str,
     pub struct_name: &'a str,
-    pub function_name: &'a str,
-    pub rows: Vec<String>,
-    pub edit_rows: Vec<String>,
-    pub id: IDType,
 }
-*/

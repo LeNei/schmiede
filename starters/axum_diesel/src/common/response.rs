@@ -3,6 +3,7 @@ use axum::{
     http::Response,
     response::{IntoResponse, Json},
 };
+use diesel::result::Error::{self, NotFound};
 use http::StatusCode;
 use serde::Serialize;
 
@@ -50,5 +51,17 @@ impl ErrorResponse {
                 message: String::from(message),
             }),
         )
+    }
+}
+
+impl From<Error> for ErrorResponse {
+    fn from(e: Error) -> Self {
+        match e {
+            NotFound => ErrorResponse::custom_error(StatusCode::NOT_FOUND, "Item not found"),
+            _ => {
+                tracing::error!("Something went wrong: {}", e);
+                ErrorResponse::default()
+            }
+        }
     }
 }

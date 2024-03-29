@@ -1,5 +1,4 @@
 use super::response::ErrorResponse;
-use crate::config::auth::AuthSettings;
 use crate::config::database::PgPool;
 use diesel_async::pooled_connection::deadpool::Object;
 use diesel_async::AsyncPgConnection;
@@ -7,7 +6,6 @@ use diesel_async::AsyncPgConnection;
 #[derive(Clone)]
 pub struct ApiContext {
     pub db: PgPool,
-    pub auth_settings: AuthSettings,
 }
 
 pub type Connection = Object<AsyncPgConnection>;

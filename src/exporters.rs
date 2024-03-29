@@ -1,9 +1,10 @@
-use crate::template::PageTemplate;
+use crate::template::{ApiTemplate, PageTemplate};
 
 use super::template::{DbDownTemplate, DbUpTemplate, ModelTemplate};
 use anyhow::Result;
 use askama::Template;
 use chrono::Utc;
+use convert_case::{Case, Casing};
 use std::fs::{create_dir_all, read_to_string, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -78,6 +79,26 @@ fn create_migration_file(name: &str, ty: &str, content: &[u8]) -> Result<()> {
     file.write_all(content)?;
     file.write_all(b"\n")?; // Add a newline if needed
     Ok(())
+}
+
+impl Export for ApiTemplate<'_>
+where
+    Self: Template,
+{
+    fn export(&self) -> Result<()> {
+        let file_path = format!("src/api/{}.rs", self.name.to_case(Case::Snake));
+
+        // Append to the file
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .open(file_path)?;
+
+        let contents = self.render()?;
+
+        file.write_all(&contents.into_bytes())?;
+        Ok(())
+    }
 }
 
 impl Export for PageTemplate<'_> {

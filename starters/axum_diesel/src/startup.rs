@@ -16,7 +16,6 @@ pub async fn build(settings: Settings) -> Result<()> {
             .database
             .get_connection_pool()
             .context("Failed to connect to database")?,
-        auth_settings: settings.auth,
     };
 
     tracing::info!("Running migrations...");
@@ -39,7 +38,7 @@ pub async fn build(settings: Settings) -> Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(api_context.clone());
 
-    tracing::info!("Binding port...");
+    tracing::info!("Binding port {}...", settings.application.port);
     let address = format!(
         "{}:{}",
         settings.application.host, settings.application.port

@@ -43,7 +43,9 @@
             pkgs.pkg-config
             pkgs.rust-analyzer
             pkgs.cargo-watch
-            pkgs.nodejs_21
+            pkgs.diesel-cli
+            pkgs.postgresql
+            pkgs.bunyan-rs
             rust
           ];
         };

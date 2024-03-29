@@ -1,7 +1,7 @@
 use crate::attribute::{get_term_attributes, Attribute};
 use crate::data_types::IDType;
 use crate::exporters::Export;
-use crate::template::{DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
+use crate::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
 use crate::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
@@ -132,7 +132,13 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                 };
                 model_template.export()?;
             }
-            GenerateOptions::Routes => {}
+            GenerateOptions::Routes => {
+                let api_template = ApiTemplate {
+                    name: &name,
+                    struct_name: &name.to_case(Case::Pascal),
+                };
+                api_template.export()?;
+            }
             GenerateOptions::Admin => {
                 let page_template = PageTemplate {
                     function_name: &name.to_case(Case::Snake),
