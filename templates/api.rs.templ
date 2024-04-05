@@ -42,7 +42,7 @@ async fn get_{{ name|lower }}(
 
 async fn new_{{ name|lower }}(
     State(ctx): State<ApiContext>,
-    Json(body): Json<New{{ struct_name }}>,
+    Json(json_body): Json<New{{ struct_name }}>,
 ) -> Result<(StatusCode, Json<{{ struct_name }}>), ErrorResponse> {
     use crate::schema::{{ name|lower }}::dsl::*;
     use diesel::prelude::*;
@@ -51,7 +51,7 @@ async fn new_{{ name|lower }}(
     let mut conn = ctx.get_db_connection().await?;
 
     let new_{{ name|lower }} = diesel::insert_into({{ name|lower }})
-        .values(body)
+        .values(json_body)
         .returning({{ struct_name }}::as_returning())
         .get_result(&mut conn)
         .await
@@ -63,7 +63,7 @@ async fn new_{{ name|lower }}(
 async fn update_post(
     State(ctx): State<ApiContext>,
     Path({{ name|lower }}_id): Path<i32>,
-    Json(body): Json<Update{{ struct_name }}>,
+    Json(json_body): Json<Update{{ struct_name }}>,
 ) -> Result<Json<{{ struct_name }}>, ErrorResponse> {
     use crate::schema::{{ name|lower }}::dsl::*;
     use diesel::prelude::*;
@@ -72,7 +72,7 @@ async fn update_post(
     let mut conn = ctx.get_db_connection().await?;
 
     let updated_{{ name|lower }} = diesel::update({{ name|lower }}.find({{ name|lower }}_id))
-        .set(body)
+        .set(json_body)
         .returning({{ struct_name }}::as_returning())
         .get_result(&mut conn)
         .await

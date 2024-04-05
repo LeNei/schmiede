@@ -88,10 +88,9 @@ where
     fn export(&self) -> Result<()> {
         let file_path = format!("src/api/{}.rs", self.name.to_case(Case::Snake));
 
-        // Append to the file
         let mut file = OpenOptions::new()
+            .append(true)
             .create(true)
-            .truncate(false)
             .open(file_path)?;
 
         let contents = self.render()?;
