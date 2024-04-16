@@ -1,10 +1,10 @@
-use crate::attribute::{get_term_attributes, Attribute};
+use crate::attribute::Attribute;
 use crate::crud::CrudOperations;
 use crate::data_types::IDType;
 use crate::exporters::Export;
 use crate::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
 use crate::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use console::Term;
 use convert_case::{Case, Casing};
@@ -18,7 +18,7 @@ const GENERATE_OPTIONS: [&str; 4] = [
     "Admin Pages",
 ];
 
-#[derive(ValueEnum, Clone, Debug)]
+#[derive(ValueEnum, Clone, Debug, PartialEq)]
 pub enum GenerateOptions {
     Sql,
     Struct,
@@ -52,14 +52,14 @@ pub struct GenerateArgs {
     /// Options on what to generate
     pub options: Option<Vec<GenerateOptions>>,
 
-    #[arg(short, long, value_delimiter = ',', value_parser = Attribute::from_str, verbatim_doc_comment)]
+    #[arg(short, long, value_delimiter = ',', value_parser = Attribute::from_clap, verbatim_doc_comment)]
     /// Attributes that the generated files should posses.
     /// These are constructed as {name}:{type}.
     /// Fox example: title:text.
     /// You can add an question mark at the end if the attribute is optional.
     pub attributes: Option<Vec<Attribute>>,
 
-    #[arg(short = 'p', long, value_parser = CrudOperations::from_cli, verbatim_doc_comment)]
+    #[arg(short = 'p', long, value_parser = CrudOperations::from_clap, verbatim_doc_comment)]
     /// Operations that should be generated for the api.
     /// Can be left out if no api is generated.
     /// Can be a comma separated list of the following:
@@ -69,7 +69,6 @@ pub struct GenerateArgs {
 }
 
 pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
-    println!("{:?}", args);
     let selected_options = match args.options {
         Some(options) => options,
         None => {
@@ -91,6 +90,20 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
         term.write_line("No options selected, exiting...")?;
         return Ok(());
     }
+
+    let operations: Option<CrudOperations> = match args.operations {
+        Some(operations) => Some(operations),
+        None => {
+            if selected_options
+                .iter()
+                .any(|x| *x == GenerateOptions::Routes)
+            {
+                Some(CrudOperations::from_cli(&term, &theme)?)
+            } else {
+                None
+            }
+        }
+    };
 
     let name: String = match args.name {
         Some(name) => name,
@@ -117,7 +130,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
 
     let attributes = match args.attributes {
         Some(attributes) => attributes,
-        None => get_term_attributes(&term, &theme)?,
+        None => Attribute::from_cli(&term, &theme)?,
     };
 
     for export_option in selected_options {
@@ -146,7 +159,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                 let api_template = ApiTemplate {
                     name: &name,
                     struct_name: &name.to_case(Case::Pascal),
-                    crud_operations: CrudOperations::All,
+                    crud_operations: operations.clone().context("No operations selected")?,
                 };
                 api_template.export()?;
             }

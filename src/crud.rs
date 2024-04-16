@@ -1,4 +1,6 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use console::Term;
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 
 #[derive(Clone, Debug)]
 pub enum CrudOperations {
@@ -14,8 +16,10 @@ pub enum SpecificOperation {
     Delete,
 }
 
+const OPERATIONS: [&str; 4] = ["create", "read", "update", "delete"];
+
 impl CrudOperations {
-    pub fn from_cli(operations: &str) -> Result<Self> {
+    pub fn from_clap(operations: &str) -> Result<Self> {
         if Self::from_str(operations).is_ok() {
             return Ok(Self::All);
         }
@@ -24,13 +28,11 @@ impl CrudOperations {
             for operation in operations.split(',') {
                 res.push(SpecificOperation::from_str(operation)?);
             }
+        } else if let Ok(operation) = SpecificOperation::from_str(operations) {
+            res.push(operation);
         } else {
-            if let Ok(operation) = SpecificOperation::from_str(operations) {
-                res.push(operation);
-            } else {
-                for operation in operations.chars() {
-                    res.push(SpecificOperation::from_str(&operation.to_string())?);
-                }
+            for operation in operations.chars() {
+                res.push(SpecificOperation::from_str(&operation.to_string())?);
             }
         }
 
@@ -57,6 +59,30 @@ impl CrudOperations {
             "a" => Ok(CrudOperations::All),
             _ => anyhow::bail!("Failed to convert crud operations"),
         }
+    }
+
+    pub fn from_cli(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
+        let operations = MultiSelect::with_theme(theme)
+            .with_prompt("What operations should the api have?")
+            .items(&OPERATIONS)
+            .interact_on(term)
+            .context("Failed to get operations")?;
+
+        if operations.is_empty() {
+            anyhow::bail!("No operations selected");
+        }
+
+        if operations.len() == 4 {
+            return Ok(Self::All);
+        }
+
+        let mut res = vec![];
+
+        for operation in operations {
+            res.push(SpecificOperation::from_str(OPERATIONS[operation])?);
+        }
+
+        Ok(Self::Specific(res))
     }
 }
 
