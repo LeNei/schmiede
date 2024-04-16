@@ -1,41 +1,30 @@
-use crate::attribute::Attribute;
-use crate::crud::CrudOperations;
-use crate::data_types::IDType;
-use crate::exporters::Export;
-use crate::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
-use crate::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
+mod attribute;
+mod crud;
+mod data_types;
+mod exporters;
+mod options;
+mod template;
+mod transformers;
+
+use self::attribute::Attribute;
+use self::crud::CrudOperations;
+use self::data_types::IDType;
+use self::exporters::Export;
+use self::options::GenerateOptions;
+use self::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
+use self::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
 use anyhow::{Context, Result};
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use console::Term;
 use convert_case::{Case, Casing};
-use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
-use strum::IntoEnumIterator;
+use dialoguer::{theme::ColorfulTheme, Input, Select};
 
-const GENERATE_OPTIONS: [&str; 4] = [
-    "SQL Migration",
-    "Rust Struct",
-    "API CRUD routes",
-    "Admin Pages",
-];
-
-#[derive(ValueEnum, Clone, Debug, PartialEq)]
-pub enum GenerateOptions {
-    Sql,
-    Struct,
-    Routes,
-    Admin,
+trait FromClap: Sized {
+    fn from_clap(str: &str) -> Result<Self>;
 }
 
-impl GenerateOptions {
-    fn from_usize(index: usize) -> Result<Self> {
-        match index {
-            0 => Ok(GenerateOptions::Sql),
-            1 => Ok(GenerateOptions::Struct),
-            2 => Ok(GenerateOptions::Routes),
-            3 => Ok(GenerateOptions::Admin),
-            _ => anyhow::bail!("Failed to convert option"),
-        }
-    }
+trait FromTerm<T>: Sized {
+    fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<T>;
 }
 
 #[derive(Parser, Debug)]
@@ -71,25 +60,8 @@ pub struct GenerateArgs {
 pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
     let selected_options = match args.options {
         Some(options) => options,
-        None => {
-            let options = MultiSelect::with_theme(&theme)
-                .with_prompt("What do you want to create?")
-                .items(&GENERATE_OPTIONS)
-                .interact_on(&term)
-                .unwrap();
-
-            let mut res = vec![];
-            for option in options {
-                res.push(GenerateOptions::from_usize(option)?);
-            }
-            res
-        }
+        None => GenerateOptions::from_term(&term, &theme)?,
     };
-
-    if selected_options.is_empty() {
-        term.write_line("No options selected, exiting...")?;
-        return Ok(());
-    }
 
     let operations: Option<CrudOperations> = match args.operations {
         Some(operations) => Some(operations),
@@ -98,7 +70,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                 .iter()
                 .any(|x| *x == GenerateOptions::Routes)
             {
-                Some(CrudOperations::from_cli(&term, &theme)?)
+                Some(CrudOperations::from_term(&term, &theme)?)
             } else {
                 None
             }
@@ -115,22 +87,12 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
 
     let id: IDType = match args.id {
         Some(id) => id,
-        None => {
-            let id_options = IDType::iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<String>>();
-            Select::with_theme(&theme)
-                .with_prompt("Does the table/entry have an primary id?")
-                .items(&id_options)
-                .interact_on(&term)
-                .unwrap()
-                .into()
-        }
+        None => IDType::from_term(&term, &theme)?,
     };
 
     let attributes = match args.attributes {
         Some(attributes) => attributes,
-        None => Attribute::from_cli(&term, &theme)?,
+        None => Attribute::from_term(&term, &theme)?,
     };
 
     for export_option in selected_options {

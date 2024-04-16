@@ -1,6 +1,8 @@
+use super::{FromClap, FromTerm};
 use anyhow::{Context, Result};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
+use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub enum CrudOperations {
@@ -16,23 +18,21 @@ pub enum SpecificOperation {
     Delete,
 }
 
-const OPERATIONS: [&str; 4] = ["create", "read", "update", "delete"];
-
-impl CrudOperations {
-    pub fn from_clap(operations: &str) -> Result<Self> {
+impl FromClap for CrudOperations {
+    fn from_clap(operations: &str) -> Result<Self> {
         if Self::from_str(operations).is_ok() {
             return Ok(Self::All);
         }
-        let mut res = vec![];
+        let mut res: Vec<SpecificOperation> = vec![];
         if operations.contains(',') {
             for operation in operations.split(',') {
-                res.push(SpecificOperation::from_str(operation)?);
+                res.push(operation.parse()?);
             }
-        } else if let Ok(operation) = SpecificOperation::from_str(operations) {
+        } else if let Ok(operation) = operations.parse() {
             res.push(operation);
         } else {
             for operation in operations.chars() {
-                res.push(SpecificOperation::from_str(&operation.to_string())?);
+                res.push(operation.to_string().parse()?);
             }
         }
 
@@ -52,19 +52,13 @@ impl CrudOperations {
             Ok(Self::Specific(res))
         }
     }
+}
 
-    fn from_str(operation: &str) -> Result<Self> {
-        match operation {
-            "all" => Ok(CrudOperations::All),
-            "a" => Ok(CrudOperations::All),
-            _ => anyhow::bail!("Failed to convert crud operations"),
-        }
-    }
-
-    pub fn from_cli(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
+impl FromTerm<Self> for CrudOperations {
+    fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
         let operations = MultiSelect::with_theme(theme)
             .with_prompt("What operations should the api have?")
-            .items(&OPERATIONS)
+            .items(&SpecificOperation::values())
             .interact_on(term)
             .context("Failed to get operations")?;
 
@@ -79,14 +73,30 @@ impl CrudOperations {
         let mut res = vec![];
 
         for operation in operations {
-            res.push(SpecificOperation::from_str(OPERATIONS[operation])?);
+            res.push(operation.try_into()?);
         }
 
         Ok(Self::Specific(res))
     }
 }
 
+impl FromStr for CrudOperations {
+    type Err = anyhow::Error;
+
+    fn from_str(str: &str) -> Result<Self> {
+        match str {
+            "all" => Ok(CrudOperations::All),
+            "a" => Ok(CrudOperations::All),
+            _ => anyhow::bail!("Failed to convert crud operations"),
+        }
+    }
+}
+
 impl SpecificOperation {
+    fn values() -> Vec<&'static str> {
+        vec!["create", "read", "update", "delete"]
+    }
+
     fn check_duplicate_values(values: &[SpecificOperation]) -> bool {
         let mut found = vec![];
         for operation in values {
@@ -97,9 +107,27 @@ impl SpecificOperation {
         }
         false
     }
+}
 
-    fn from_str(operation: &str) -> Result<Self> {
-        match operation {
+impl TryFrom<usize> for SpecificOperation {
+    type Error = anyhow::Error;
+
+    fn try_from(value: usize) -> Result<Self> {
+        match value {
+            0 => Ok(SpecificOperation::Create),
+            1 => Ok(SpecificOperation::Read),
+            2 => Ok(SpecificOperation::Update),
+            3 => Ok(SpecificOperation::Delete),
+            _ => anyhow::bail!("Failed to convert operation"),
+        }
+    }
+}
+
+impl FromStr for SpecificOperation {
+    type Err = anyhow::Error;
+
+    fn from_str(str: &str) -> Result<Self> {
+        match str {
             "create" => Ok(SpecificOperation::Create),
             "c" => Ok(SpecificOperation::Create),
             "read" => Ok(SpecificOperation::Read),
@@ -108,7 +136,7 @@ impl SpecificOperation {
             "u" => Ok(SpecificOperation::Update),
             "delete" => Ok(SpecificOperation::Delete),
             "d" => Ok(SpecificOperation::Delete),
-            _ => anyhow::bail!("Failed to convert specific operation"),
+            _ => anyhow::bail!("Invalid operation"),
         }
     }
 }

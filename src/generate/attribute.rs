@@ -1,9 +1,8 @@
-use crate::data_types::DataType;
+use super::data_types::DataType;
+use super::{FromClap, FromTerm};
 use anyhow::{Context, Result};
 use console::{style, Term};
 use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input};
-use std::str::FromStr;
-use strum::IntoEnumIterator;
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
@@ -12,15 +11,15 @@ pub struct Attribute {
     pub optional: bool,
 }
 
-impl Attribute {
-    pub fn from_clap(attribute: &str) -> Result<Self> {
+impl FromClap for Attribute {
+    fn from_clap(attribute: &str) -> Result<Self> {
         let (name, mut data_type_definition) = attribute.split_once(':').unwrap();
         let mut required = true;
         if data_type_definition.ends_with('?') {
             required = false;
             data_type_definition = &data_type_definition[..data_type_definition.len() - 1];
         }
-        let data_type = DataType::from_str(data_type_definition)?;
+        let data_type = data_type_definition.parse()?;
 
         Ok(Attribute {
             name: name.to_string(),
@@ -28,8 +27,10 @@ impl Attribute {
             optional: !required,
         })
     }
+}
 
-    pub fn from_cli(term: &Term, theme: &ColorfulTheme) -> Result<Vec<Attribute>> {
+impl FromTerm<Vec<Attribute>> for Attribute {
+    fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Vec<Attribute>> {
         let mut stop = false;
         let mut attributes: Vec<Attribute> = vec![];
 
@@ -58,12 +59,10 @@ impl Attribute {
         }
         Ok(attributes)
     }
+}
 
+impl Attribute {
     fn get_attribute(term: &Term, theme: &ColorfulTheme) -> Result<Attribute> {
-        let data_types = DataType::iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<String>>();
-
         let name: String = Input::with_theme(theme)
             .with_prompt("Set your field name")
             .interact_on(term)
@@ -71,10 +70,10 @@ impl Attribute {
 
         let data_type: DataType = FuzzySelect::with_theme(theme)
             .with_prompt("Pick a data type")
-            .items(&data_types)
+            .items(&DataType::values())
             .interact_on(term)
             .context("Failed to get data type")?
-            .into();
+            .try_into()?;
 
         let optional = Confirm::with_theme(theme)
             .with_prompt("Is this field optional?")

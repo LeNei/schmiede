@@ -1,4 +1,4 @@
-use crate::template::{ApiTemplate, PageTemplate};
+use super::template::{ApiTemplate, PageTemplate};
 
 use super::template::{DbDownTemplate, DbUpTemplate, ModelTemplate};
 use anyhow::Result;

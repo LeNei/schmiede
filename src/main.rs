@@ -1,11 +1,5 @@
-mod attribute;
-mod crud;
-mod data_types;
-mod exporters;
 mod generate;
 mod init;
-mod template;
-mod transformers;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};

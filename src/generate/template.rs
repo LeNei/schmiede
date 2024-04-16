@@ -3,8 +3,8 @@ use askama::Template;
 use std::fs::File;
 use std::io::Write;
 
-use crate::crud::CrudOperations;
-use crate::data_types::IDType;
+use super::crud::CrudOperations;
+use super::data_types::IDType;
 
 pub trait CreateTemplate {
     fn create_template(&self, file_path: String) -> Result<()>;

@@ -1,14 +1,33 @@
-use anyhow::Result;
+use super::FromTerm;
+use anyhow::{Context, Result};
 use clap::ValueEnum;
+use console::Term;
 use convert_case::{Case, Casing};
+use dialoguer::{theme::ColorfulTheme, Select};
 use std::{fmt::Display, str::FromStr};
-use strum_macros::EnumIter;
 
-#[derive(Debug, EnumIter, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum)]
 pub enum IDType {
     Uuid,
     Int,
     None,
+}
+
+impl IDType {
+    pub fn values() -> Vec<&'static str> {
+        vec!["uuid", "int", "none"]
+    }
+}
+
+impl FromTerm<Self> for IDType {
+    fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
+        Select::with_theme(theme)
+            .with_prompt("Does the table/entry have an primary id?")
+            .items(&IDType::values())
+            .interact_on(term)
+            .context("Failed to get id type")?
+            .try_into()
+    }
 }
 
 impl Display for IDType {
@@ -21,18 +40,20 @@ impl Display for IDType {
     }
 }
 
-impl From<usize> for IDType {
-    fn from(value: usize) -> Self {
+impl TryFrom<usize> for IDType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: usize) -> Result<Self> {
         match value {
-            0 => IDType::Uuid,
-            1 => IDType::Int,
-            2 => IDType::None,
-            _ => panic!("Invalid enum"),
+            0 => Ok(IDType::Uuid),
+            1 => Ok(IDType::Int),
+            2 => Ok(IDType::None),
+            _ => anyhow::bail!("Failed to convert IDType from usize"),
         }
     }
 }
 
-#[derive(Debug, Clone, EnumIter)]
+#[derive(Debug, Clone)]
 pub enum DataType {
     // Common Types
     Boolean,
@@ -56,6 +77,32 @@ pub enum DataType {
     // More specialized
     Jsonb,
     Uuid,
+}
+
+impl DataType {
+    pub fn values() -> Vec<&'static str> {
+        vec![
+            "bool",
+            "smallInt",
+            "int",
+            "bigInt",
+            "real",
+            "doublePrecision",
+            "numeric",
+            "char",
+            "varChar",
+            "text",
+            "bytea",
+            "timestamp",
+            "timestampTZ",
+            "date",
+            "time",
+            "timeTZ",
+            "interval",
+            "jsonb",
+            "uuid",
+        ]
+    }
 }
 
 impl Display for DataType {
@@ -113,29 +160,31 @@ impl FromStr for DataType {
     }
 }
 
-impl From<usize> for DataType {
-    fn from(value: usize) -> Self {
+impl TryFrom<usize> for DataType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: usize) -> Result<Self> {
         match value {
-            0 => DataType::Boolean,
-            1 => DataType::SmallInt,
-            2 => DataType::Integer,
-            3 => DataType::BigInt,
-            4 => DataType::Real,
-            5 => DataType::DoublePrecision,
-            6 => DataType::Numeric(0, 0),
-            7 => DataType::Char(0),
-            8 => DataType::VarChar(0),
-            9 => DataType::Text,
-            10 => DataType::Bytea,
-            11 => DataType::Timestamp,
-            12 => DataType::TimestampTZ,
-            13 => DataType::Date,
-            14 => DataType::Time,
-            15 => DataType::TimeTZ,
-            16 => DataType::Interval,
-            17 => DataType::Jsonb,
-            18 => DataType::Uuid,
-            _ => panic!("False id"),
+            0 => Ok(DataType::Boolean),
+            1 => Ok(DataType::SmallInt),
+            2 => Ok(DataType::Integer),
+            3 => Ok(DataType::BigInt),
+            4 => Ok(DataType::Real),
+            5 => Ok(DataType::DoublePrecision),
+            6 => Ok(DataType::Numeric(0, 0)),
+            7 => Ok(DataType::Char(0)),
+            8 => Ok(DataType::VarChar(0)),
+            9 => Ok(DataType::Text),
+            10 => Ok(DataType::Bytea),
+            11 => Ok(DataType::Timestamp),
+            12 => Ok(DataType::TimestampTZ),
+            13 => Ok(DataType::Date),
+            14 => Ok(DataType::Time),
+            15 => Ok(DataType::TimeTZ),
+            16 => Ok(DataType::Interval),
+            17 => Ok(DataType::Jsonb),
+            18 => Ok(DataType::Uuid),
+            _ => anyhow::bail!("Failed to convert data type from usize"),
         }
     }
 }

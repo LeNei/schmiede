@@ -1,4 +1,4 @@
-use crate::data_types::DataType;
+use super::data_types::DataType;
 use convert_case::{Case, Casing};
 
 pub trait DataTypeTransformer {
