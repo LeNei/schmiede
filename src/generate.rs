@@ -1,4 +1,5 @@
 use crate::attribute::{get_term_attributes, Attribute};
+use crate::crud::CrudOperations;
 use crate::data_types::IDType;
 use crate::exporters::Export;
 use crate::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
@@ -39,27 +40,36 @@ impl GenerateOptions {
 
 #[derive(Parser, Debug)]
 pub struct GenerateArgs {
-    #[clap(short, long)]
+    #[arg(short, long)]
     /// Name of the generated files/data
     pub name: Option<String>,
 
-    #[clap(short, long)]
+    #[arg(short, long)]
     /// Type of id
     pub id: Option<IDType>,
 
-    #[clap(short, long, value_delimiter = ',')]
+    #[arg(short, long, value_delimiter = ',')]
     /// Options on what to generate
     pub options: Option<Vec<GenerateOptions>>,
 
-    #[clap(short, long, value_delimiter = ',', value_parser = Attribute::from_str, verbatim_doc_comment)]
+    #[arg(short, long, value_delimiter = ',', value_parser = Attribute::from_str, verbatim_doc_comment)]
     /// Attributes that the generated files should posses.
     /// These are constructed as {name}:{type}.
     /// Fox example: title:text.
     /// You can add an question mark at the end if the attribute is optional.
     pub attributes: Option<Vec<Attribute>>,
+
+    #[arg(short = 'p', long, value_parser = CrudOperations::from_cli, verbatim_doc_comment)]
+    /// Operations that should be generated for the api.
+    /// Can be left out if no api is generated.
+    /// Can be a comma separated list of the following:
+    /// all, create, read, update, delete
+    /// Or short notation without comma: crud
+    pub operations: Option<CrudOperations>,
 }
 
 pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
+    println!("{:?}", args);
     let selected_options = match args.options {
         Some(options) => options,
         None => {
@@ -136,6 +146,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                 let api_template = ApiTemplate {
                     name: &name,
                     struct_name: &name.to_case(Case::Pascal),
+                    crud_operations: CrudOperations::All,
                 };
                 api_template.export()?;
             }

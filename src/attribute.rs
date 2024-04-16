@@ -13,7 +13,7 @@ pub struct Attribute {
 }
 
 impl Attribute {
-    pub fn from_str(attribute: &str) -> Result<Attribute> {
+    pub fn from_str(attribute: &str) -> Result<Self> {
         let (name, mut data_type_definition) = attribute.split_once(':').unwrap();
         let mut required = true;
         if data_type_definition.ends_with('?') {

@@ -3,6 +3,7 @@ use askama::Template;
 use std::fs::File;
 use std::io::Write;
 
+use crate::crud::CrudOperations;
 use crate::data_types::IDType;
 
 pub trait CreateTemplate {
@@ -58,4 +59,5 @@ pub struct PageTemplate<'a> {
 pub struct ApiTemplate<'a> {
     pub name: &'a str,
     pub struct_name: &'a str,
+    pub crud_operations: CrudOperations,
 }

@@ -1,4 +1,5 @@
 mod attribute;
+mod crud;
 mod data_types;
 mod exporters;
 mod generate;
@@ -19,8 +20,9 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Generate(generate::GenerateArgs),
     Init(init::InitArgs),
+    Generate(generate::GenerateArgs),
+    Add,
 }
 
 fn main() -> Result<()> {
@@ -31,7 +33,7 @@ fn main() -> Result<()> {
     match args.cmd {
         Some(Commands::Generate(args)) => return generate::generate_files(args, term, theme),
         Some(Commands::Init(args)) => return init::init_starter(args, term, theme),
-        None => {}
+        _ => {}
     };
 
     Ok(())
