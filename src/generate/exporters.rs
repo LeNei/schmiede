@@ -1,4 +1,4 @@
-use super::template::{ApiTemplate, PageTemplate};
+use super::template::ApiTemplate;
 
 use super::template::{DbDownTemplate, DbUpTemplate, ModelTemplate};
 use anyhow::Result;
@@ -100,6 +100,7 @@ where
     }
 }
 
+/*
 impl Export for PageTemplate<'_> {
     fn export(&self) -> Result<()> {
         let file_path = format!("src/admin/{}.rs", self.function_name);
@@ -116,3 +117,4 @@ impl Export for PageTemplate<'_> {
         Ok(())
     }
 }
+*/
