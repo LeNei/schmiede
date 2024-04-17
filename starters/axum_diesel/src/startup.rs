@@ -4,7 +4,7 @@ use crate::config::Settings;
 use anyhow::{Context, Result};
 use axum::Router;
 use http::header::{ACCEPT, CONTENT_TYPE};
-use http::Method;
+use http::{HeaderValue, Method};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -23,7 +23,12 @@ pub async fn build(settings: Settings) -> Result<()> {
 
     tracing::info!("Creating router...");
 
-    let origins = ["http://localhost:5173".parse().unwrap()];
+    let origins: Vec<HeaderValue> = settings
+        .application
+        .origins
+        .iter()
+        .map(|o| o.parse().unwrap())
+        .collect();
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST, Method::PUT])
