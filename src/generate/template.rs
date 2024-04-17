@@ -1,27 +1,7 @@
-use anyhow::{Context, Result};
 use askama::Template;
-use std::fs::File;
-use std::io::Write;
 
 use super::crud::CrudOperations;
 use super::data_types::IDType;
-
-pub trait CreateTemplate {
-    fn create_template(&self, file_path: String) -> Result<()>;
-}
-
-impl<T: Template> CreateTemplate for T {
-    fn create_template(&self, file_path: String) -> Result<()> {
-        let mut file = File::create(file_path).context("Failed to create file")?;
-
-        file.write_all(
-            self.render()
-                .context("Failed to render template")?
-                .as_bytes(),
-        )
-        .context("Failed to write sql down template to file")
-    }
-}
 
 #[derive(Template)]
 #[template(path = "db.up.sql.templ", escape = "html")]
