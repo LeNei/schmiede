@@ -46,6 +46,7 @@ pub struct ModelTemplate<'a> {
     pub rows: Vec<String>,
 }
 
+/*
 #[derive(Template)]
 #[template(path = "page.rs.templ", escape = "html")]
 pub struct PageTemplate<'a> {
@@ -53,6 +54,7 @@ pub struct PageTemplate<'a> {
     pub model_name: &'a str,
     pub route: &'a str,
 }
+*/
 
 #[derive(Template)]
 #[template(path = "api.rs.templ", escape = "html")]

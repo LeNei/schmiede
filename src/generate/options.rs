@@ -9,7 +9,7 @@ pub enum GenerateOptions {
     Sql,
     Struct,
     Routes,
-    Admin,
+    //Admin,
 }
 
 impl GenerateOptions {
@@ -18,8 +18,20 @@ impl GenerateOptions {
             "SQL Migration",
             "Rust Struct",
             "API CRUD routes",
-            "Admin Pages",
+            //"Admin Pages",
         ]
+    }
+
+    pub fn requires_id(&self) -> bool {
+        matches!(self, GenerateOptions::Struct | GenerateOptions::Sql)
+    }
+
+    pub fn requires_attributes(&self) -> bool {
+        matches!(self, GenerateOptions::Struct | GenerateOptions::Sql)
+    }
+
+    pub fn requires_operations(&self) -> bool {
+        matches!(self, GenerateOptions::Routes)
     }
 }
 
@@ -30,7 +42,7 @@ impl TryFrom<usize> for GenerateOptions {
             0 => Ok(GenerateOptions::Sql),
             1 => Ok(GenerateOptions::Struct),
             2 => Ok(GenerateOptions::Routes),
-            3 => Ok(GenerateOptions::Admin),
+            //3 => Ok(GenerateOptions::Admin),
             _ => anyhow::bail!("Failed to convert option"),
         }
     }

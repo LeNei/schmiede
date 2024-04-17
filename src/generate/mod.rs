@@ -11,13 +11,13 @@ use self::crud::CrudOperations;
 use self::data_types::IDType;
 use self::exporters::Export;
 use self::options::GenerateOptions;
-use self::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate, PageTemplate};
+use self::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate};
 use self::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
 use anyhow::{Context, Result};
 use clap::Parser;
 use console::Term;
 use convert_case::{Case, Casing};
-use dialoguer::{theme::ColorfulTheme, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Input};
 
 trait FromClap: Sized {
     fn from_clap(str: &str) -> Result<Self>;
@@ -66,10 +66,7 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
     let operations: Option<CrudOperations> = match args.operations {
         Some(operations) => Some(operations),
         None => {
-            if selected_options
-                .iter()
-                .any(|x| *x == GenerateOptions::Routes)
-            {
+            if selected_options.iter().any(|x| x.requires_operations()) {
                 Some(CrudOperations::from_term(&term, &theme)?)
             } else {
                 None
@@ -85,14 +82,26 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
             .unwrap(),
     };
 
-    let id: IDType = match args.id {
-        Some(id) => id,
-        None => IDType::from_term(&term, &theme)?,
+    let id: Option<IDType> = match args.id {
+        Some(id) => Some(id),
+        None => {
+            if selected_options.iter().any(|x| x.requires_id()) {
+                Some(IDType::from_term(&term, &theme)?)
+            } else {
+                None
+            }
+        }
     };
 
-    let attributes = match args.attributes {
-        Some(attributes) => attributes,
-        None => Attribute::from_term(&term, &theme)?,
+    let attributes: Option<Vec<Attribute>> = match args.attributes {
+        Some(attributes) => Some(attributes),
+        None => {
+            if selected_options.iter().any(|x| x.requires_attributes()) {
+                Some(Attribute::from_term(&term, &theme)?)
+            } else {
+                None
+            }
+        }
     };
 
     for export_option in selected_options {
@@ -101,8 +110,10 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                 let name = &name.to_case(Case::Snake);
                 let up_template = DbUpTemplate {
                     name,
-                    rows: get_rows(&attributes, export_option),
-                    id: id.clone(),
+                    // This is safe because the option requires attributes
+                    rows: get_rows(attributes.as_ref().unwrap(), export_option),
+                    // This is safe because the option requires an id
+                    id: id.clone().expect("Should be present if SQL selected"),
                 };
                 let down_template = DbDownTemplate { name };
                 up_template.export()?;
@@ -110,10 +121,12 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
             }
             GenerateOptions::Struct => {
                 let model_template = ModelTemplate {
-                    id: id.clone(),
+                    // This is safe because the option requires an id
+                    id: id.clone().unwrap(),
                     name: &name,
                     struct_name: &name.to_case(Case::Pascal),
-                    rows: get_rows(&attributes, export_option),
+                    // This is safe because the option requires attributes
+                    rows: get_rows(attributes.as_ref().unwrap(), export_option),
                 };
                 model_template.export()?;
             }
@@ -124,16 +137,17 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
                     crud_operations: operations.clone().context("No operations selected")?,
                 };
                 api_template.export()?;
-            }
-            GenerateOptions::Admin => {
-                let page_template = PageTemplate {
-                    function_name: &name.to_case(Case::Snake),
-                    model_name: &name.to_case(Case::Pascal),
-                    route: &name.to_case(Case::Kebab),
-                };
+            } /* Disable for now until base is implemented
+              GenerateOptions::Admin => {
+                   let page_template = PageTemplate {
+                       function_name: &name.to_case(Case::Snake),
+                       model_name: &name.to_case(Case::Pascal),
+                       route: &name.to_case(Case::Kebab),
+                   };
 
-                page_template.export()?;
-            }
+                   page_template.export()?;
+               }
+               */
         };
     }
 
