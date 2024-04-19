@@ -6,11 +6,11 @@ use toml_edit::{value, Array, DocumentMut};
 
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
-pub struct SqlxConfigTemplate {
+pub struct DieselConfigTemplate {
     pub database: Database,
 }
 
-impl SqlxConfigTemplate {
+impl DieselConfigTemplate {
     pub fn new(database: Database) -> Self {
         Self { database }
     }
@@ -19,21 +19,12 @@ impl SqlxConfigTemplate {
         let db = match self.database {
             Database::Postgres => "postgres",
         };
-        // TODO: Add support for other databases
+
         vec![
-            (
-                "sqlx",
-                "0.7.4",
-                Some(vec![
-                    "runtime-tokio-rustls",
-                    "macros",
-                    "migrate",
-                    "offline",
-                    db,
-                ]),
-            ),
+            ("diesel", "2.1.0", Some(vec![db])),
+            ("diesel_async", "0.4.1", Some(vec![db, "deadpool"])),
             ("secrecy", "0.8.0", Some(vec!["serde"])),
-            ("serde-aux", "4.1.2", None),
+            ("serde_aux", "4.1.2", None),
         ]
     }
 
@@ -75,7 +66,7 @@ impl SqlxConfigTemplate {
     }
 }
 
-impl AddFeature for SqlxConfigTemplate {
+impl AddFeature for DieselConfigTemplate {
     fn add_feature(&self) -> Result<()> {
         self.write_dependencies()?;
         self.render_sqlx()?;
@@ -90,23 +81,15 @@ mod test {
     #[test]
     fn test_dependencies() {
         let database = Database::Postgres;
-        let template = SqlxConfigTemplate::new(database);
+        let template = DieselConfigTemplate::new(database);
+        let db = "postgres";
         assert_eq!(
             template.dependencies(),
             vec![
-                (
-                    "sqlx",
-                    "0.7.4",
-                    Some(vec![
-                        "runtime-tokio-rustls",
-                        "macros",
-                        "migrate",
-                        "offline",
-                        "postgres"
-                    ])
-                ),
+                ("diesel", "2.1.0", Some(vec![db])),
+                ("diesel_async", "0.4.1", Some(vec![db, "deadpool"])),
                 ("secrecy", "0.8.0", Some(vec!["serde"])),
-                ("serde-aux", "4.1.2", None),
+                ("serde_aux", "4.1.2", None),
             ]
         );
     }
@@ -114,7 +97,7 @@ mod test {
     #[test]
     fn test_write_dependencies() {
         let database = Database::Postgres;
-        let template = SqlxConfigTemplate::new(database);
+        let template = DieselConfigTemplate::new(database);
         template.write_dependencies().unwrap();
     }
 
@@ -122,7 +105,7 @@ mod test {
     #[test]
     fn test_render_sqlx() {
         let database = Database::Postgres;
-        let template = SqlxConfigTemplate::new(database);
+        let template = DieselConfigTemplate::new(database);
         template.render_sqlx().unwrap();
     }
     */

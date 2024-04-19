@@ -1,1 +1,2 @@
+mod diesel;
 mod sqlx;
