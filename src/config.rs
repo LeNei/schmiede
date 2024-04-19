@@ -45,17 +45,12 @@ impl Config {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Default, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiFramework {
-    AXUM,
-    ACTIX,
-}
-
-impl Default for ApiFramework {
-    fn default() -> Self {
-        ApiFramework::AXUM
-    }
+    #[default]
+    Axum,
+    Actix,
 }
 
 impl ApiFramework {
@@ -69,18 +64,18 @@ impl FromStr for ApiFramework {
 
     fn from_str(input: &str) -> Result<Self> {
         match input {
-            "axum" => Ok(ApiFramework::AXUM),
-            "actix" => Ok(ApiFramework::ACTIX),
+            "axum" => Ok(ApiFramework::Axum),
+            "actix" => Ok(ApiFramework::Actix),
             _ => anyhow::bail!("Failed to get api framework from str"),
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Database {
-    POSTGRES,
-    SQLITE,
+    Postgres,
+    Sqlite,
 }
 
 impl Database {
@@ -94,18 +89,18 @@ impl FromStr for Database {
 
     fn from_str(input: &str) -> Result<Self> {
         match input {
-            "postgres" => Ok(Database::POSTGRES),
-            "sqlite" => Ok(Database::SQLITE),
+            "postgres" => Ok(Database::Postgres),
+            "sqlite" => Ok(Database::Sqlite),
             _ => anyhow::bail!("Failed to get database from str"),
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseDriver {
-    SQLX,
-    DIESEL,
+    Sqlx,
+    Diesel,
 }
 
 impl DatabaseDriver {
@@ -119,9 +114,90 @@ impl FromStr for DatabaseDriver {
 
     fn from_str(input: &str) -> Result<Self> {
         match input {
-            "sqlx" => Ok(DatabaseDriver::SQLX),
-            "diesel" => Ok(DatabaseDriver::DIESEL),
+            "sqlx" => Ok(DatabaseDriver::Sqlx),
+            "diesel" => Ok(DatabaseDriver::Diesel),
             _ => anyhow::bail!("Failed to get database driver from str"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_framework_from_values() {
+        let values = ApiFramework::values();
+        let invalid = "invalid";
+
+        for value in values.iter() {
+            assert!(ApiFramework::from_str(value).is_ok());
+        }
+        assert!(ApiFramework::from_str(invalid).is_err());
+    }
+
+    #[test]
+    fn test_database_from_values() {
+        let values = Database::values();
+        let invalid = "invalid";
+
+        for value in values.iter() {
+            assert!(Database::from_str(value).is_ok());
+        }
+        assert!(Database::from_str(invalid).is_err());
+    }
+
+    #[test]
+    fn test_database_driver_from_values() {
+        let values = DatabaseDriver::values();
+        let invalid = "invalid";
+
+        for value in values.iter() {
+            assert!(DatabaseDriver::from_str(value).is_ok());
+        }
+        assert!(DatabaseDriver::from_str(invalid).is_err());
+    }
+
+    #[test]
+    fn test_config_from_file() {
+        let config = Config::from_file();
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn test_config_new() {
+        let config = Config::new();
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn test_config_write_to_file() {
+        let mut config = Config::new().unwrap();
+        config.add_api_framework(ApiFramework::Actix);
+        config.add_database(Database::Postgres);
+        config.add_database_driver(DatabaseDriver::Diesel);
+        let write = config.write_to_file();
+        assert!(write.is_ok());
+    }
+
+    #[test]
+    fn test_config_add_api_framework() {
+        let mut config = Config::new().unwrap();
+        config.add_api_framework(ApiFramework::Actix);
+        assert_eq!(config.api_framework, ApiFramework::Actix);
+    }
+
+    #[test]
+    fn test_config_add_database() {
+        let mut config = Config::new().unwrap();
+        config.add_database(Database::Postgres);
+        assert_eq!(config.database, Some(Database::Postgres));
+    }
+
+    #[test]
+    fn test_config_add_database_driver() {
+        let mut config = Config::new().unwrap();
+        config.add_database_driver(DatabaseDriver::Diesel);
+        assert_eq!(config.database_driver, Some(DatabaseDriver::Diesel));
     }
 }
