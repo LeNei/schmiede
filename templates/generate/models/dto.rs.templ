@@ -1,0 +1,18 @@
+use chrono::{offset::Utc, DateTime};
+use serde::{Serialize, Deserialize};
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct New{{ struct_name }} {
+    {%- for row in rows %}
+    {{ row }},
+    {%- endfor %}
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Update{{ struct_name }} {
+    {%- for row in rows %}
+    {{ row }},
+    {%- endfor %}
+}

@@ -50,12 +50,12 @@ impl Config {
 pub enum ApiFramework {
     #[default]
     Axum,
-    Actix,
+    //Actix,
 }
 
 impl ApiFramework {
-    pub fn values() -> [&'static str; 2] {
-        ["axum", "actix"]
+    pub fn values() -> [&'static str; 1] {
+        ["axum"]
     }
 }
 
@@ -65,7 +65,7 @@ impl FromStr for ApiFramework {
     fn from_str(input: &str) -> Result<Self> {
         match input {
             "axum" => Ok(ApiFramework::Axum),
-            "actix" => Ok(ApiFramework::Actix),
+            //"actix" => Ok(ApiFramework::Actix),
             _ => anyhow::bail!("Failed to get api framework from str"),
         }
     }
@@ -75,12 +75,12 @@ impl FromStr for ApiFramework {
 #[serde(rename_all = "lowercase")]
 pub enum Database {
     Postgres,
-    Sqlite,
+    //Sqlite,
 }
 
 impl Database {
-    pub fn values() -> [&'static str; 2] {
-        ["postgres", "sqlite"]
+    pub fn values() -> [&'static str; 1] {
+        ["postgres"]
     }
 }
 
@@ -90,7 +90,7 @@ impl FromStr for Database {
     fn from_str(input: &str) -> Result<Self> {
         match input {
             "postgres" => Ok(Database::Postgres),
-            "sqlite" => Ok(Database::Sqlite),
+            //"sqlite" => Ok(Database::Sqlite),
             _ => anyhow::bail!("Failed to get database from str"),
         }
     }
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_config_write_to_file() {
         let mut config = Config::new().unwrap();
-        config.add_api_framework(ApiFramework::Actix);
+        //config.add_api_framework(ApiFramework::Actix);
         config.add_database(Database::Postgres);
         config.add_database_driver(DatabaseDriver::Diesel);
         let write = config.write_to_file();
@@ -183,8 +183,8 @@ mod tests {
     #[test]
     fn test_config_add_api_framework() {
         let mut config = Config::new().unwrap();
-        config.add_api_framework(ApiFramework::Actix);
-        assert_eq!(config.api_framework, ApiFramework::Actix);
+        config.add_api_framework(ApiFramework::Axum);
+        assert_eq!(config.api_framework, ApiFramework::Axum);
     }
 
     #[test]
