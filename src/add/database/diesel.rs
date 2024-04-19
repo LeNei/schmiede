@@ -59,7 +59,7 @@ impl DieselConfigTemplate {
         Ok(())
     }
 
-    fn render_sqlx(&self) -> Result<()> {
+    fn write_config(&self) -> Result<()> {
         let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
         fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
         Ok(())
@@ -69,7 +69,7 @@ impl DieselConfigTemplate {
 impl AddFeature for DieselConfigTemplate {
     fn add_feature(&self) -> Result<()> {
         self.write_dependencies()?;
-        self.render_sqlx()?;
+        self.write_config()?;
         Ok(())
     }
 }

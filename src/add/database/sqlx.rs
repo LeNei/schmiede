@@ -68,7 +68,7 @@ impl SqlxConfigTemplate {
         Ok(())
     }
 
-    fn render_sqlx(&self) -> Result<()> {
+    fn write_config(&self) -> Result<()> {
         let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
         fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
         Ok(())
@@ -78,7 +78,7 @@ impl SqlxConfigTemplate {
 impl AddFeature for SqlxConfigTemplate {
     fn add_feature(&self) -> Result<()> {
         self.write_dependencies()?;
-        self.render_sqlx()?;
+        self.write_config()?;
         Ok(())
     }
 }
