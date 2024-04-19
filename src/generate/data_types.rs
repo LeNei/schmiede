@@ -14,8 +14,8 @@ pub enum IDType {
 }
 
 impl IDType {
-    pub fn values() -> Vec<&'static str> {
-        vec!["uuid", "int", "none"]
+    pub fn values() -> [&'static str; 3] {
+        ["uuid", "int", "none"]
     }
 }
 
@@ -80,8 +80,8 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn values() -> Vec<&'static str> {
-        vec![
+    pub fn values() -> [&'static str; 19] {
+        [
             "bool",
             "smallInt",
             "int",

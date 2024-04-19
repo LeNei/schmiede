@@ -11,7 +11,7 @@ const STARTER_TEMPLATE_FOLDER: &str = "starters";
 
 const TEMP_FOLDER: &str = "./temporary";
 
-const STARTER_NAMES: [&str; 1] = ["axum_diesel_auth_admin"];
+const STARTER_NAMES: [&str; 1] = ["axum"];
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum Starters {
@@ -50,6 +50,12 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
             STARTER_NAMES[id]
         }
     };
+
+    let database = Select::with_theme(&theme)
+        .with_prompt("Which database do you want to use?")
+        .items(&["Postgres", "Sqlite"])
+        .interact_on(&term)
+        .unwrap();
 
     create_starter(&project_name, starter_name)
 }

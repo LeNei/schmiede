@@ -93,8 +93,8 @@ impl FromStr for CrudOperations {
 }
 
 impl SpecificOperation {
-    fn values() -> Vec<&'static str> {
-        vec!["create", "read", "update", "delete"]
+    fn values() -> [&'static str; 4] {
+        ["create", "read", "update", "delete"]
     }
 
     fn check_duplicate_values(values: &[SpecificOperation]) -> bool {

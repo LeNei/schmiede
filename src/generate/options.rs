@@ -13,13 +13,8 @@ pub enum GenerateOptions {
 }
 
 impl GenerateOptions {
-    pub fn values() -> Vec<&'static str> {
-        vec![
-            "SQL Migration",
-            "Rust Struct",
-            "API CRUD routes",
-            //"Admin Pages",
-        ]
+    pub fn values() -> [&'static str; 3] {
+        ["SQL Migration", "Rust Struct", "API CRUD routes"]
     }
 
     pub fn requires_id(&self) -> bool {

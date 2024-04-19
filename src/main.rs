@@ -1,3 +1,4 @@
+mod config;
 mod generate;
 mod init;
 
@@ -20,6 +21,8 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
+    let mut config = config::Config::new()?;
+    println!("{:?}", config);
     let args = Args::parse();
     let term = Term::buffered_stderr();
     let theme = ColorfulTheme::default();
