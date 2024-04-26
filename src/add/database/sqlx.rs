@@ -1,3 +1,4 @@
+use super::UpdateDatabaseFiles;
 use crate::{add::AddFeature, config::Database};
 use anyhow::{Context, Result};
 use askama::Template;
@@ -71,6 +72,100 @@ impl SqlxConfigTemplate {
     fn write_config(&self) -> Result<()> {
         let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
         fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
+        Ok(())
+    }
+}
+
+impl UpdateDatabaseFiles for SqlxConfigTemplate {
+    fn update_config() -> Result<bool> {
+        let config = fs::read_to_string("./src/config/mod.rs")
+            .with_context(|| "Failed to read config file")?;
+
+        let mut lines = config.lines().collect::<Vec<_>>();
+        lines.insert(1, "pub mod database;");
+
+        let mut found_use = false;
+        let mut found_struct = false;
+        let mut found_context = false;
+
+        for (i, line) in lines.clone().iter().enumerate() {
+            if found_use && found_struct && found_context {
+                break;
+            }
+            if !found_use && line.contains("use") {
+                lines.insert(i, "use database::DatabaseSettings;");
+                lines.insert(i, "use sqlx::PgPool;");
+                found_use = true;
+                continue;
+            }
+            if !found_struct && line.contains("pub struct Settings {") {
+                lines.insert(i + 1, "    pub database: DatabaseSettings,");
+                found_struct = true;
+                continue;
+            }
+
+            if !found_context && line.contains("pub struct ApiContext {") {
+                lines.insert(i + 1, "    pub db: PgPool,");
+                found_context = true;
+                continue;
+            }
+        }
+
+        if !found_context {
+            lines.push("pub struct ApiContext {");
+            lines.push("    pub db: PgPool,");
+            lines.push("}");
+        }
+
+        let updated_config = lines.join("\n");
+        fs::write("./src/config/mod.rs", updated_config)
+            .with_context(|| "Failed to write updated config file")?;
+
+        Ok(found_context)
+    }
+
+    fn update_startup(has_context: bool) -> Result<()> {
+        let startup = fs::read_to_string("./src/startup.rs")
+            .with_context(|| "Failed to read startup file")?;
+
+        let mut lines = startup.lines().collect::<Vec<_>>();
+
+        let mut found_context = false;
+        let mut found_tracing = false;
+
+        if !has_context {
+            lines.insert(0, "use crate::config::ApiContext;");
+        }
+
+        for (i, line) in lines.clone().iter().enumerate() {
+            if found_context && found_tracing {
+                break;
+            }
+
+            if !has_context {
+                if !found_context && line.contains("let api_context = ApiContext {") {
+                    lines.insert(i + 1, "    db: settings.database.get_connection_pool(),");
+                    found_context = true;
+                    continue;
+                }
+            } else {
+                if !found_context && line.contains("pub async fn build") {
+                    lines.insert(i, "let api_context = ApiContext {");
+                    lines.insert(i + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
+                    lines.insert(i + 2, "};");
+
+                    found_context = true;
+                    continue;
+                }
+            }
+
+            if !found_tracing && line.contains("TraceLayer") {
+                let line = lines.get_mut(i).unwrap().replace(";", "");
+                lines.insert(i, "   .with_state(api_context.clone());");
+                found_tracing = true;
+                continue;
+            }
+        }
         Ok(())
     }
 }
