@@ -70,7 +70,7 @@ impl Attribute {
 
         let data_type: DataType = FuzzySelect::with_theme(theme)
             .with_prompt("Pick a data type")
-            .items(&DataType::values())
+            .items(&DataType::VALUES)
             .interact_on(term)
             .context("Failed to get data type")?
             .try_into()?;

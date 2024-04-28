@@ -19,6 +19,7 @@ impl SqlxConfigTemplate {
     fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
         let db = match self.database {
             Database::Postgres => "postgres",
+            Database::None => panic!("Database not supported"),
         };
         // TODO: Add support for other databases
         vec![
@@ -160,7 +161,7 @@ impl UpdateDatabaseFiles for SqlxConfigTemplate {
             }
 
             if !found_tracing && line.contains("TraceLayer") {
-                let line = lines.get_mut(i).unwrap().replace(";", "");
+                let line = lines.get_mut(i).unwrap().replace(';', "");
                 lines.insert(i, "   .with_state(api_context.clone());");
                 found_tracing = true;
                 continue;
@@ -206,6 +207,8 @@ mod test {
         );
     }
 
+    /*
+     * Should be done in integration tests
     #[test]
     fn test_write_dependencies() {
         let database = Database::Postgres;
@@ -213,7 +216,6 @@ mod test {
         template.write_dependencies().unwrap();
     }
 
-    /*
     #[test]
     fn test_render_sqlx() {
         let database = Database::Postgres;

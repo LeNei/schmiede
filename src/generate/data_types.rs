@@ -14,16 +14,14 @@ pub enum IDType {
 }
 
 impl IDType {
-    pub fn values() -> [&'static str; 3] {
-        ["uuid", "int", "none"]
-    }
+    const VALUES: [&'static str; 3] = ["uuid", "int", "none"];
 }
 
 impl FromTerm<Self> for IDType {
     fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
         Select::with_theme(theme)
             .with_prompt("Does the table/entry have an primary id?")
-            .items(&IDType::values())
+            .items(&IDType::VALUES)
             .interact_on(term)
             .context("Failed to get id type")?
             .try_into()
@@ -80,29 +78,27 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn values() -> [&'static str; 19] {
-        [
-            "bool",
-            "smallInt",
-            "int",
-            "bigInt",
-            "real",
-            "doublePrecision",
-            "numeric",
-            "char",
-            "varChar",
-            "text",
-            "bytea",
-            "timestamp",
-            "timestampTZ",
-            "date",
-            "time",
-            "timeTZ",
-            "interval",
-            "jsonb",
-            "uuid",
-        ]
-    }
+    pub const VALUES: [&'static str; 19] = [
+        "bool",
+        "smallInt",
+        "int",
+        "bigInt",
+        "real",
+        "doublePrecision",
+        "numeric",
+        "char",
+        "varChar",
+        "text",
+        "bytea",
+        "timestamp",
+        "timestampTZ",
+        "date",
+        "time",
+        "timeTZ",
+        "interval",
+        "jsonb",
+        "uuid",
+    ];
 }
 
 impl Display for DataType {

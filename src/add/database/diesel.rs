@@ -18,6 +18,7 @@ impl DieselConfigTemplate {
     fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
         let db = match self.database {
             Database::Postgres => "postgres",
+            Database::None => panic!("Database not supported"),
         };
 
         vec![
@@ -94,6 +95,8 @@ mod test {
         );
     }
 
+    /*
+     * Should be done in integration tests
     #[test]
     fn test_write_dependencies() {
         let database = Database::Postgres;
@@ -101,7 +104,6 @@ mod test {
         template.write_dependencies().unwrap();
     }
 
-    /*
     #[test]
     fn test_render_sqlx() {
         let database = Database::Postgres;

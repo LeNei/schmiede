@@ -13,9 +13,7 @@ pub enum GenerateOptions {
 }
 
 impl GenerateOptions {
-    pub fn values() -> [&'static str; 3] {
-        ["SQL Migration", "Rust Struct", "API CRUD routes"]
-    }
+    const VALUES: [&'static str; 3] = ["sql", "struct", "routes"];
 
     pub fn requires_id(&self) -> bool {
         matches!(self, GenerateOptions::Struct | GenerateOptions::Sql)
@@ -47,7 +45,7 @@ impl FromTerm<Vec<Self>> for GenerateOptions {
     fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Vec<Self>> {
         let options = MultiSelect::with_theme(theme)
             .with_prompt("Select what to generate")
-            .items(&GenerateOptions::values())
+            .items(&GenerateOptions::VALUES)
             .interact_on(term)
             .context("Failed to get generate option")?;
 

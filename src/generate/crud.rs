@@ -58,7 +58,7 @@ impl FromTerm<Self> for CrudOperations {
     fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<Self> {
         let operations = MultiSelect::with_theme(theme)
             .with_prompt("What operations should the api have?")
-            .items(&SpecificOperation::values())
+            .items(&SpecificOperation::VALUES)
             .interact_on(term)
             .context("Failed to get operations")?;
 
@@ -93,9 +93,7 @@ impl FromStr for CrudOperations {
 }
 
 impl SpecificOperation {
-    fn values() -> [&'static str; 4] {
-        ["create", "read", "update", "delete"]
-    }
+    const VALUES: [&'static str; 4] = ["create", "read", "update", "delete"];
 
     fn check_duplicate_values(values: &[SpecificOperation]) -> bool {
         let mut found = vec![];

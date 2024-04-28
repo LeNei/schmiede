@@ -45,7 +45,7 @@ impl Config {
     }
 }
 
-#[derive(Deserialize, Default, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Default, Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiFramework {
     #[default]
@@ -54,9 +54,7 @@ pub enum ApiFramework {
 }
 
 impl ApiFramework {
-    pub fn values() -> [&'static str; 1] {
-        ["axum"]
-    }
+    pub const VALUES: [&'static str; 1] = ["axum"];
 }
 
 impl FromStr for ApiFramework {
@@ -71,17 +69,15 @@ impl FromStr for ApiFramework {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Database {
     Postgres,
-    //Sqlite,
+    None, //Sqlite,
 }
 
 impl Database {
-    pub fn values() -> [&'static str; 1] {
-        ["postgres"]
-    }
+    pub const VALUES: [&'static str; 2] = ["postgres", "none"];
 }
 
 impl FromStr for Database {
@@ -90,6 +86,7 @@ impl FromStr for Database {
     fn from_str(input: &str) -> Result<Self> {
         match input {
             "postgres" => Ok(Database::Postgres),
+            "none" => Ok(Database::None),
             //"sqlite" => Ok(Database::Sqlite),
             _ => anyhow::bail!("Failed to get database from str"),
         }
@@ -104,9 +101,7 @@ pub enum DatabaseDriver {
 }
 
 impl DatabaseDriver {
-    pub fn values() -> [&'static str; 2] {
-        ["sqlx", "diesel"]
-    }
+    const VALUES: [&'static str; 2] = ["sqlx", "diesel"];
 }
 
 impl FromStr for DatabaseDriver {
@@ -127,10 +122,9 @@ mod tests {
 
     #[test]
     fn test_api_framework_from_values() {
-        let values = ApiFramework::values();
         let invalid = "invalid";
 
-        for value in values.iter() {
+        for value in ApiFramework::VALUES.iter() {
             assert!(ApiFramework::from_str(value).is_ok());
         }
         assert!(ApiFramework::from_str(invalid).is_err());
@@ -138,10 +132,9 @@ mod tests {
 
     #[test]
     fn test_database_from_values() {
-        let values = Database::values();
         let invalid = "invalid";
 
-        for value in values.iter() {
+        for value in Database::VALUES.iter() {
             assert!(Database::from_str(value).is_ok());
         }
         assert!(Database::from_str(invalid).is_err());
@@ -149,20 +142,22 @@ mod tests {
 
     #[test]
     fn test_database_driver_from_values() {
-        let values = DatabaseDriver::values();
         let invalid = "invalid";
 
-        for value in values.iter() {
+        for value in DatabaseDriver::VALUES.iter() {
             assert!(DatabaseDriver::from_str(value).is_ok());
         }
         assert!(DatabaseDriver::from_str(invalid).is_err());
     }
 
+    /*
+     * Should be tested in integration tests
     #[test]
     fn test_config_from_file() {
         let config = Config::from_file();
         assert!(config.is_ok());
     }
+    */
 
     #[test]
     fn test_config_new() {
@@ -170,6 +165,8 @@ mod tests {
         assert!(config.is_ok());
     }
 
+    /*
+     * Should be tested in integration tests
     #[test]
     fn test_config_write_to_file() {
         let mut config = Config::new().unwrap();
@@ -179,6 +176,7 @@ mod tests {
         let write = config.write_to_file();
         assert!(write.is_ok());
     }
+    */
 
     #[test]
     fn test_config_add_api_framework() {

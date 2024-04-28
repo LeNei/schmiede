@@ -2,8 +2,10 @@ use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
-use std::fs;
 use std::path::Path;
+use std::{fs, str::FromStr};
+
+use crate::config::{ApiFramework, Database};
 
 const BASE_REPO_URL: &str = "https://github.com/LeNei/schmiede";
 
@@ -15,7 +17,7 @@ const STARTER_NAMES: [&str; 1] = ["axum"];
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum Starters {
-    AxumDieselAuthAdmin,
+    Axum,
 }
 
 #[derive(Parser, Debug)]
@@ -24,40 +26,48 @@ pub struct InitArgs {
     pub project_name: Option<String>,
 
     #[clap(short, long, value_enum)]
-    pub template: Option<Starters>,
+    pub template: Option<ApiFramework>,
+
+    #[clap(short, long, value_enum)]
+    pub database: Option<Database>,
 }
 
 pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
     let project_name = match args.project_name {
         Some(name) => name,
-        None => {
-            let name: String = Input::with_theme(&theme)
-                .with_prompt("What is the name of your project?")
-                .interact_on(&term)
-                .unwrap();
-            name
-        }
+        None => Input::with_theme(&theme)
+            .with_prompt("What is the name of your project?")
+            .interact_on(&term)
+            .context("Failed to get project name")?,
     };
 
     let starter_name = match args.template {
-        Some(template) => STARTER_NAMES[template as usize],
+        Some(template) => template,
         None => {
-            let id = Select::with_theme(&theme)
+            let index = Select::with_theme(&theme)
                 .with_prompt("Which starter template do you want to use?")
-                .items(&STARTER_NAMES)
+                .items(&ApiFramework::VALUES)
                 .interact_on(&term)
-                .unwrap();
-            STARTER_NAMES[id]
+                .context("Failed to get starter")?;
+            ApiFramework::from_str(ApiFramework::VALUES[index])
+                .context("Failed to parse starter")?
         }
     };
 
-    let database = Select::with_theme(&theme)
-        .with_prompt("Which database do you want to use?")
-        .items(&["Postgres", "Sqlite"])
-        .interact_on(&term)
-        .unwrap();
+    let database = match args.database {
+        Some(database) => database,
+        None => {
+            let index = Select::with_theme(&theme)
+                .with_prompt("Which database do you want to use?")
+                .items(&Database::VALUES)
+                .interact_on(&term)
+                .context("Failed to get database")?;
+            Database::from_str(Database::VALUES[index]).context("Failed to parse database")?
+        }
+    };
 
-    create_starter(&project_name, starter_name)
+    //create_starter(&project_name, starter_name)
+    Ok(())
 }
 
 pub fn create_starter(project_name: &str, template_name: &str) -> Result<()> {
