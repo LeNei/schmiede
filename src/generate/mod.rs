@@ -23,7 +23,7 @@ trait FromClap: Sized {
     fn from_clap(str: &str) -> Result<Self>;
 }
 
-trait FromTerm<T>: Sized {
+pub trait FromTerm<T>: Sized {
     fn from_term(term: &Term, theme: &ColorfulTheme) -> Result<T>;
 }
 

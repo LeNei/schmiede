@@ -1,5 +1,5 @@
 use super::UpdateDatabaseFiles;
-use crate::{add::AddFeature, config::Database};
+use crate::{add::AddFeature, config::DatabaseType};
 use anyhow::{Context, Result};
 use askama::Template;
 use std::fs;
@@ -8,18 +8,17 @@ use toml_edit::{value, Array, DocumentMut};
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
 pub struct SqlxConfigTemplate {
-    pub database: Database,
+    pub database: DatabaseType,
 }
 
 impl SqlxConfigTemplate {
-    pub fn new(database: Database) -> Self {
+    pub fn new(database: DatabaseType) -> Self {
         Self { database }
     }
 
     fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
         let db = match self.database {
-            Database::Postgres => "postgres",
-            Database::None => panic!("Database not supported"),
+            DatabaseType::PostgreSQL => "postgres",
         };
         // TODO: Add support for other databases
         vec![
@@ -94,13 +93,13 @@ impl UpdateDatabaseFiles for SqlxConfigTemplate {
                 break;
             }
             if !found_use && line.contains("use") {
-                lines.insert(i, "use database::DatabaseSettings;");
+                lines.insert(i, "use database::DatabaseTypeSettings;");
                 lines.insert(i, "use sqlx::PgPool;");
                 found_use = true;
                 continue;
             }
             if !found_struct && line.contains("pub struct Settings {") {
-                lines.insert(i + 1, "    pub database: DatabaseSettings,");
+                lines.insert(i + 1, "    pub database: DatabaseTypeSettings,");
                 found_struct = true;
                 continue;
             }
@@ -149,15 +148,13 @@ impl UpdateDatabaseFiles for SqlxConfigTemplate {
                     found_context = true;
                     continue;
                 }
-            } else {
-                if !found_context && line.contains("pub async fn build") {
-                    lines.insert(i, "let api_context = ApiContext {");
-                    lines.insert(i + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
-                    lines.insert(i + 2, "};");
+            } else if !found_context && line.contains("pub async fn build") {
+                lines.insert(i, "let api_context = ApiContext {");
+                lines.insert(i + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
+                lines.insert(i + 2, "};");
 
-                    found_context = true;
-                    continue;
-                }
+                found_context = true;
+                continue;
             }
 
             if !found_tracing && line.contains("TraceLayer") {
@@ -185,7 +182,7 @@ mod test {
 
     #[test]
     fn test_dependencies() {
-        let database = Database::Postgres;
+        let database = DatabaseType::PostgreSQL;
         let template = SqlxConfigTemplate::new(database);
         assert_eq!(
             template.dependencies(),
@@ -211,14 +208,14 @@ mod test {
      * Should be done in integration tests
     #[test]
     fn test_write_dependencies() {
-        let database = Database::Postgres;
+        let database = DatabaseType::Postgres;
         let template = SqlxConfigTemplate::new(database);
         template.write_dependencies().unwrap();
     }
 
     #[test]
     fn test_render_sqlx() {
-        let database = Database::Postgres;
+        let database = DatabaseType::Postgres;
         let template = SqlxConfigTemplate::new(database);
         template.render_sqlx().unwrap();
     }

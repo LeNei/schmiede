@@ -22,17 +22,13 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
-    let mut config = config::Config::new()?;
-    println!("{:?}", config);
     let args = Args::parse();
     let term = Term::buffered_stderr();
     let theme = ColorfulTheme::default();
 
     match args.cmd {
-        Some(Commands::Generate(args)) => return generate::generate_files(args, term, theme),
-        Some(Commands::Init(args)) => return init::init_starter(args, term, theme),
-        _ => {}
-    };
-
-    Ok(())
+        Some(Commands::Generate(args)) => generate::generate_files(args, term, theme),
+        Some(Commands::Init(args)) => init::init_starter(args, term, theme),
+        _ => Ok(()),
+    }
 }

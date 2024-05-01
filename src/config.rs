@@ -1,6 +1,9 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::{default::Default, fs, str::FromStr};
+
+use crate::generate::FromTerm;
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
@@ -8,7 +11,6 @@ pub struct Config {
     #[serde(default)]
     pub api_framework: ApiFramework,
     pub database: Option<Database>,
-    pub database_driver: Option<DatabaseDriver>,
 }
 
 impl Config {
@@ -18,30 +20,59 @@ impl Config {
         Ok(config)
     }
 
-    pub fn new() -> Result<Self> {
-        if let Ok(config) = Self::from_file() {
-            Ok(config)
-        } else {
-            Ok(Config::default())
-        }
-    }
-
-    pub fn add_api_framework(&mut self, api_framework: ApiFramework) {
-        self.api_framework = api_framework;
-    }
-
-    pub fn add_database(&mut self, database: Database) {
-        self.database = Some(database);
-    }
-
-    pub fn add_database_driver(&mut self, database_driver: DatabaseDriver) {
-        self.database_driver = Some(database_driver);
-    }
-
-    pub fn write_to_file(&self) -> Result<()> {
-        let config = toml::to_string(self)?;
-        fs::write("schmiede.toml", config)?;
+    fn create_config_toml(&self, project_path: &Path) -> Result<()> {
+        let config = toml::to_string_pretty(self)?;
+        fs::write(project_path.join("schmiede.toml"), config).context("Failed to write config")?;
         Ok(())
+    }
+
+    pub fn init_from_starter(&self, project_name: &str) -> Result<()> {
+        let temp_dir = Path::new("./temporary");
+        let mut fetch_options = git2::FetchOptions::new();
+        fetch_options.depth(1);
+        git2::build::RepoBuilder::new()
+            .fetch_options(fetch_options)
+            .clone("https://github.com/LeNei/schmiede", temp_dir)
+            .context("Failed to clone repo")?;
+
+        let source_folder =
+            temp_dir.join(format!("{}/{}", "starters", self.api_framework.to_string()));
+
+        fs::rename(source_folder, project_name).context("Failed to get starter")?;
+        self.create_config_toml(Path::new(project_name))?;
+
+        fs::remove_dir_all(temp_dir).context("Failed to remove temporary folder")?;
+        Ok(())
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct ConfigBuilder {
+    #[serde(default)]
+    api_framework: ApiFramework,
+    database: Option<Database>,
+}
+
+impl ConfigBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn api_framework(&mut self, api_framework: ApiFramework) -> &mut Self {
+        self.api_framework = api_framework;
+        self
+    }
+
+    pub fn database(&mut self, database: Option<Database>) -> &mut Self {
+        self.database = database;
+        self
+    }
+
+    pub fn build(&self) -> Config {
+        Config {
+            api_framework: self.api_framework.clone(), // Assuming api_framework is now required
+            database: self.database.clone(),
+        }
     }
 }
 
@@ -53,15 +84,34 @@ pub enum ApiFramework {
     //Actix,
 }
 
-impl ApiFramework {
-    pub const VALUES: [&'static str; 1] = ["axum"];
+impl ToString for ApiFramework {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Axum => "axum".to_string(),
+        }
+    }
+}
+
+impl FromTerm<ApiFramework> for ApiFramework {
+    fn from_term(
+        term: &console::Term,
+        theme: &dialoguer::theme::ColorfulTheme,
+    ) -> Result<ApiFramework> {
+        let options = ["Axum"];
+        let index = dialoguer::Select::with_theme(theme)
+            .with_prompt("Which api framework do you want to use?")
+            .items(&options)
+            .interact_on(term)?;
+
+        Ok(ApiFramework::from_str(options[index])?)
+    }
 }
 
 impl FromStr for ApiFramework {
     type Err = anyhow::Error;
 
     fn from_str(input: &str) -> Result<Self> {
-        match input {
+        match input.to_lowercase().as_str() {
             "axum" => Ok(ApiFramework::Axum),
             //"actix" => Ok(ApiFramework::Actix),
             _ => anyhow::bail!("Failed to get api framework from str"),
@@ -69,46 +119,87 @@ impl FromStr for ApiFramework {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum Database {
-    Postgres,
-    None, //Sqlite,
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Database {
+    database_type: DatabaseType,
+    database_driver: DatabaseDriver,
 }
 
 impl Database {
-    pub const VALUES: [&'static str; 2] = ["postgres", "none"];
+    pub fn new(database_type: DatabaseType, database_driver: DatabaseDriver) -> Self {
+        Self {
+            database_type,
+            database_driver,
+        }
+    }
 }
 
-impl FromStr for Database {
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum DatabaseType {
+    PostgreSQL,
+    //Sqlite,
+}
+
+impl FromTerm<Option<DatabaseType>> for DatabaseType {
+    fn from_term(
+        term: &console::Term,
+        theme: &dialoguer::theme::ColorfulTheme,
+    ) -> Result<Option<DatabaseType>> {
+        let options = ["PostgreSQL", "None"];
+
+        let index = dialoguer::Select::with_theme(theme)
+            .with_prompt("Which database do you want to use?")
+            .items(&options)
+            .interact_on(term)?;
+
+        if let Ok(database) = DatabaseType::from_str(options[index]) {
+            Ok(Some(database))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl FromStr for DatabaseType {
     type Err = anyhow::Error;
 
     fn from_str(input: &str) -> Result<Self> {
-        match input {
-            "postgres" => Ok(Database::Postgres),
-            "none" => Ok(Database::None),
+        match input.to_lowercase().as_str() {
+            "postgresql" => Ok(DatabaseType::PostgreSQL),
             //"sqlite" => Ok(Database::Sqlite),
             _ => anyhow::bail!("Failed to get database from str"),
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseDriver {
     Sqlx,
     Diesel,
 }
 
-impl DatabaseDriver {
-    const VALUES: [&'static str; 2] = ["sqlx", "diesel"];
+impl FromTerm<DatabaseDriver> for DatabaseDriver {
+    fn from_term(
+        term: &console::Term,
+        theme: &dialoguer::theme::ColorfulTheme,
+    ) -> Result<DatabaseDriver> {
+        let options = ["Sqlx", "Diesel"];
+        let index = dialoguer::Select::with_theme(theme)
+            .with_prompt("Which database driver do you want to use?")
+            .items(&options)
+            .interact_on(term)?;
+
+        Ok(DatabaseDriver::from_str(options[index])?)
+    }
 }
 
 impl FromStr for DatabaseDriver {
     type Err = anyhow::Error;
 
     fn from_str(input: &str) -> Result<Self> {
-        match input {
+        match input.to_lowercase().as_str() {
             "sqlx" => Ok(DatabaseDriver::Sqlx),
             "diesel" => Ok(DatabaseDriver::Diesel),
             _ => anyhow::bail!("Failed to get database driver from str"),
@@ -123,30 +214,24 @@ mod tests {
     #[test]
     fn test_api_framework_from_values() {
         let invalid = "invalid";
+        let options = ["axum"];
 
-        for value in ApiFramework::VALUES.iter() {
-            assert!(ApiFramework::from_str(value).is_ok());
+        for option in options.iter() {
+            assert!(ApiFramework::from_str(option).is_ok());
         }
+
         assert!(ApiFramework::from_str(invalid).is_err());
-    }
-
-    #[test]
-    fn test_database_from_values() {
-        let invalid = "invalid";
-
-        for value in Database::VALUES.iter() {
-            assert!(Database::from_str(value).is_ok());
-        }
-        assert!(Database::from_str(invalid).is_err());
     }
 
     #[test]
     fn test_database_driver_from_values() {
         let invalid = "invalid";
+        let options = ["Sqlx", "Diesel"];
 
-        for value in DatabaseDriver::VALUES.iter() {
+        for value in options.iter() {
             assert!(DatabaseDriver::from_str(value).is_ok());
         }
+
         assert!(DatabaseDriver::from_str(invalid).is_err());
     }
 
@@ -177,25 +262,4 @@ mod tests {
         assert!(write.is_ok());
     }
     */
-
-    #[test]
-    fn test_config_add_api_framework() {
-        let mut config = Config::new().unwrap();
-        config.add_api_framework(ApiFramework::Axum);
-        assert_eq!(config.api_framework, ApiFramework::Axum);
-    }
-
-    #[test]
-    fn test_config_add_database() {
-        let mut config = Config::new().unwrap();
-        config.add_database(Database::Postgres);
-        assert_eq!(config.database, Some(Database::Postgres));
-    }
-
-    #[test]
-    fn test_config_add_database_driver() {
-        let mut config = Config::new().unwrap();
-        config.add_database_driver(DatabaseDriver::Diesel);
-        assert_eq!(config.database_driver, Some(DatabaseDriver::Diesel));
-    }
 }

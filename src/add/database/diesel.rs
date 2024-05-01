@@ -1,4 +1,4 @@
-use crate::{add::AddFeature, config::Database};
+use crate::{add::AddFeature, config::DatabaseType};
 use anyhow::{Context, Result};
 use askama::Template;
 use std::fs;
@@ -7,18 +7,17 @@ use toml_edit::{value, Array, DocumentMut};
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
 pub struct DieselConfigTemplate {
-    pub database: Database,
+    pub database: DatabaseType,
 }
 
 impl DieselConfigTemplate {
-    pub fn new(database: Database) -> Self {
+    pub fn new(database: DatabaseType) -> Self {
         Self { database }
     }
 
     fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
         let db = match self.database {
-            Database::Postgres => "postgres",
-            Database::None => panic!("Database not supported"),
+            DatabaseType::PostgreSQL => "postgres",
         };
 
         vec![
@@ -81,7 +80,7 @@ mod test {
 
     #[test]
     fn test_dependencies() {
-        let database = Database::Postgres;
+        let database = DatabaseType::PostgreSQL;
         let template = DieselConfigTemplate::new(database);
         let db = "postgres";
         assert_eq!(
@@ -99,14 +98,14 @@ mod test {
      * Should be done in integration tests
     #[test]
     fn test_write_dependencies() {
-        let database = Database::Postgres;
+        let database = DatabaseType::Postgres;
         let template = DieselConfigTemplate::new(database);
         template.write_dependencies().unwrap();
     }
 
     #[test]
     fn test_render_sqlx() {
-        let database = Database::Postgres;
+        let database = DatabaseType::Postgres;
         let template = DieselConfigTemplate::new(database);
         template.render_sqlx().unwrap();
     }
