@@ -68,6 +68,7 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
         .database(database)
         .build();
 
-    config.init_from_starter(&project_name)?;
+    let path = config.init_from_starter(&project_name)?;
+    config.init_addons(&path)?;
     Ok(())
 }

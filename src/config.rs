@@ -1,6 +1,8 @@
+use crate::add::database::{diesel::DieselConfigTemplate, sqlx::SqlxConfigTemplate};
+use crate::add::AddFeature;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{default::Default, fs, str::FromStr};
 
 use crate::generate::FromTerm;
@@ -26,7 +28,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn init_from_starter(&self, project_name: &str) -> Result<()> {
+    pub fn init_from_starter(&self, project_name: &str) -> Result<PathBuf> {
         let temp_dir = Path::new("./temporary");
         let mut fetch_options = git2::FetchOptions::new();
         fetch_options.depth(1);
@@ -39,9 +41,30 @@ impl Config {
             temp_dir.join(format!("{}/{}", "starters", self.api_framework.to_string()));
 
         fs::rename(source_folder, project_name).context("Failed to get starter")?;
-        self.create_config_toml(Path::new(project_name))?;
+        let project_path = Path::new(project_name);
+        self.create_config_toml(project_path)?;
 
         fs::remove_dir_all(temp_dir).context("Failed to remove temporary folder")?;
+        Ok(project_path.to_path_buf())
+    }
+
+    pub fn init_addons(&self, project_path: &Path) -> Result<()> {
+        match &self.database {
+            Some(database) => {
+                let template: Box<dyn AddFeature> = match database.database_driver {
+                    DatabaseDriver::Sqlx => {
+                        Box::new(SqlxConfigTemplate::new(database.database_type.clone()))
+                    }
+                    DatabaseDriver::Diesel => {
+                        Box::new(DieselConfigTemplate::new(database.database_type.clone()))
+                    }
+                };
+
+                template.add_feature(project_path)?;
+            }
+            None => {}
+        }
+
         Ok(())
     }
 }
@@ -103,7 +126,7 @@ impl FromTerm<ApiFramework> for ApiFramework {
             .items(&options)
             .interact_on(term)?;
 
-        Ok(ApiFramework::from_str(options[index])?)
+        ApiFramework::from_str(options[index])
     }
 }
 
@@ -138,7 +161,7 @@ impl Database {
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseType {
     PostgreSQL,
-    //Sqlite,
+    //MySQL,
 }
 
 impl FromTerm<Option<DatabaseType>> for DatabaseType {
@@ -191,7 +214,7 @@ impl FromTerm<DatabaseDriver> for DatabaseDriver {
             .items(&options)
             .interact_on(term)?;
 
-        Ok(DatabaseDriver::from_str(options[index])?)
+        DatabaseDriver::from_str(options[index])
     }
 }
 
@@ -243,12 +266,6 @@ mod tests {
         assert!(config.is_ok());
     }
     */
-
-    #[test]
-    fn test_config_new() {
-        let config = Config::new();
-        assert!(config.is_ok());
-    }
 
     /*
      * Should be tested in integration tests

@@ -2,6 +2,7 @@ use crate::{add::AddFeature, config::DatabaseType};
 use anyhow::{Context, Result};
 use askama::Template;
 use std::fs;
+use std::path::Path;
 use toml_edit::{value, Array, DocumentMut};
 
 #[derive(Template)]
@@ -67,7 +68,7 @@ impl DieselConfigTemplate {
 }
 
 impl AddFeature for DieselConfigTemplate {
-    fn add_feature(&self) -> Result<()> {
+    fn add_feature(&self, path: &Path) -> Result<()> {
         self.write_dependencies()?;
         self.write_config()?;
         Ok(())

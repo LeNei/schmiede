@@ -1,8 +1,11 @@
 use super::UpdateDatabaseFiles;
-use crate::{add::AddFeature, config::DatabaseType};
+use crate::{
+    add::{AddFeature, FileEditor},
+    config::DatabaseType,
+};
 use anyhow::{Context, Result};
 use askama::Template;
-use std::fs;
+use std::{fs, path::Path};
 use toml_edit::{value, Array, DocumentMut};
 
 #[derive(Template)]
@@ -20,7 +23,6 @@ impl SqlxConfigTemplate {
         let db = match self.database {
             DatabaseType::PostgreSQL => "postgres",
         };
-        // TODO: Add support for other databases
         vec![
             (
                 "sqlx",
@@ -74,104 +76,82 @@ impl SqlxConfigTemplate {
         fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
         Ok(())
     }
-}
 
-impl UpdateDatabaseFiles for SqlxConfigTemplate {
-    fn update_config() -> Result<bool> {
-        let config = fs::read_to_string("./src/config/mod.rs")
-            .with_context(|| "Failed to read config file")?;
+    fn update_config(&self, path: &Path) -> Result<()> {
+        let config_path = path.join("src/config/mod.rs");
 
-        let mut lines = config.lines().collect::<Vec<_>>();
-        lines.insert(1, "pub mod database;");
+        let add_use = |lines: &mut Vec<&str>, i: usize| {
+            lines.insert(i, "use database::DatabaseTypeSettings;");
+            lines.insert(i, "use sqlx::PgPool;");
+        };
 
-        let mut found_use = false;
-        let mut found_struct = false;
-        let mut found_context = false;
+        let update_settings = |lines: &mut Vec<&str>, i: usize| {
+            lines.insert(i + 1, "    pub database: DatabaseTypeSettings,");
+        };
 
-        for (i, line) in lines.clone().iter().enumerate() {
-            if found_use && found_struct && found_context {
-                break;
+        let update_context = |lines: &mut Vec<&str>, i: usize| {
+            lines.insert(i + 1, "    pub db: PgPool,");
+        };
+
+        let add_context = |lines: &mut Vec<&str>, has_been_called: Vec<bool>| {
+            if has_been_called[has_been_called.len() - 1] {
+                return;
             }
-            if !found_use && line.contains("use") {
-                lines.insert(i, "use database::DatabaseTypeSettings;");
-                lines.insert(i, "use sqlx::PgPool;");
-                found_use = true;
-                continue;
-            }
-            if !found_struct && line.contains("pub struct Settings {") {
-                lines.insert(i + 1, "    pub database: DatabaseTypeSettings,");
-                found_struct = true;
-                continue;
-            }
-
-            if !found_context && line.contains("pub struct ApiContext {") {
-                lines.insert(i + 1, "    pub db: PgPool,");
-                found_context = true;
-                continue;
-            }
-        }
-
-        if !found_context {
             lines.push("pub struct ApiContext {");
             lines.push("    pub db: PgPool,");
             lines.push("}");
-        }
+        };
 
-        let updated_config = lines.join("\n");
-        fs::write("./src/config/mod.rs", updated_config)
-            .with_context(|| "Failed to write updated config file")?;
+        FileEditor::new(&config_path)
+            .before_change(add_use)
+            .add_change(add_use, vec!["use"])
+            .add_change(update_settings, vec!["pub struct Settings {"])
+            .add_change(update_context, vec!["pub struct ApiContext {"])
+            .after_change(add_context)
+            .edit_file()?;
 
-        Ok(found_context)
+        Ok(())
     }
 
-    fn update_startup(has_context: bool) -> Result<()> {
-        let startup = fs::read_to_string("./src/startup.rs")
-            .with_context(|| "Failed to read startup file")?;
+    fn update_startup(&self, path: &Path) -> Result<()> {
+        let startup_path = path.join("./src/startup.rs");
 
-        let mut lines = startup.lines().collect::<Vec<_>>();
+        let update_context = |lines: &mut Vec<&str>, i: usize| {
+            lines.insert(i, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
+        };
 
-        let mut found_context = false;
-        let mut found_tracing = false;
-
-        if !has_context {
-            lines.insert(0, "use crate::config::ApiContext;");
-        }
-
-        for (i, line) in lines.clone().iter().enumerate() {
-            if found_context && found_tracing {
-                break;
-            }
-
-            if !has_context {
-                if !found_context && line.contains("let api_context = ApiContext {") {
-                    lines.insert(i + 1, "    db: settings.database.get_connection_pool(),");
-                    found_context = true;
-                    continue;
+        FileEditor::new(&startup_path)
+            .add_change(update_context, vec!["let api_context = ApiContext {"])
+            .after_change(|lines, has_been_called| {
+                if has_been_called[0] {
+                    return;
                 }
-            } else if !found_context && line.contains("pub async fn build") {
-                lines.insert(i, "let api_context = ApiContext {");
-                lines.insert(i + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
-                lines.insert(i + 2, "};");
+                lines.insert(0, "use crate::config::ApiContext;");
+                let pos = lines.iter().position(|line| line.contains("pub async fn build"));
+                if let Some(pos) = pos {
+                    lines.insert(pos, "let api_context = ApiContext {");
+                    lines.insert(pos + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
+                    lines.insert(pos + 2, "};");
+                }
 
-                found_context = true;
-                continue;
-            }
+                let pos = lines.iter().position(|line| line.contains("nest(\"/api\", api_routes())"));
+                if let Some(pos) = pos {
+                    lines.insert(pos, "   .with_state(api_context.clone())");
+                }
 
-            if !found_tracing && line.contains("TraceLayer") {
-                let line = lines.get_mut(i).unwrap().replace(';', "");
-                lines.insert(i, "   .with_state(api_context.clone());");
-                found_tracing = true;
-                continue;
-            }
-        }
+
+            }).edit_file()?;
+
         Ok(())
     }
 }
 
 impl AddFeature for SqlxConfigTemplate {
-    fn add_feature(&self) -> Result<()> {
+    fn add_feature(&self, path: &Path) -> Result<()> {
         self.write_dependencies()?;
         self.write_config()?;
+        self.update_config(&path)?;
+        self.update_startup(&path)?;
         Ok(())
     }
 }
