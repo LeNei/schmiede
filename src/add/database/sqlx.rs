@@ -129,7 +129,7 @@ impl SqlxConfigTemplate {
 impl AddFeature for SqlxConfigTemplate {
     fn add_feature(&self, path: &Path) -> Result<()> {
         add_dependencies(path, self.dependencies())?;
-        write_config(path, self)?;
+        write_config(&path.join("src/config/database.rs"), self)?;
         self.update_config(path)?;
         self.update_startup(path)?;
         self.update_routes(path)?;

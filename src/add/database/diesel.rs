@@ -34,7 +34,7 @@ impl DieselConfigTemplate {
 impl AddFeature for DieselConfigTemplate {
     fn add_feature(&self, path: &Path) -> Result<()> {
         add_dependencies(path, self.dependencies())?;
-        write_config(path, self)?;
+        write_config(&path.join("src/config/database.rs"), self)?;
         Ok(())
     }
 }
