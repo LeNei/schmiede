@@ -1,3 +1,5 @@
+use std::{path::Path, time::Duration};
+
 use crate::{
     config::{ApiFramework, ConfigBuilder, Database, DatabaseDriver, DatabaseType},
     generate::FromTerm,
@@ -6,6 +8,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Input};
+use indicatif::ProgressBar;
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum Starters {
@@ -35,6 +38,10 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
             .interact_on(&term)
             .context("Failed to get project name")?,
     };
+
+    if Path::new(&project_name).exists() {
+        anyhow::bail!("Project folder already exists");
+    }
 
     let api_framework = match args.api_framework {
         Some(a) => a,
@@ -68,7 +75,20 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
         .database(database)
         .build();
 
+    let pb_starter = ProgressBar::new_spinner();
+    pb_starter.set_message("Creating project...");
+    pb_starter.enable_steady_tick(Duration::from_millis(120));
     let path = config.init_from_starter(&project_name)?;
+    pb_starter.set_message("Creating project ✓");
+    pb_starter.finish();
+
+    let pb_addons = ProgressBar::new_spinner();
+
+    pb_addons.set_message("Preparing addons...");
+    pb_addons.enable_steady_tick(Duration::from_millis(120));
     config.init_addons(&path)?;
+    pb_addons.set_message("Preparing addons ✓");
+    pb_addons.finish();
+
     Ok(())
 }
