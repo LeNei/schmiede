@@ -61,6 +61,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0952808a6c2afd1aa8947271f3a60f1a6763c7b912d210184c5149b5cf147247"
 
 [[package]]
+name = "api"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "config",
+ "http",
+ "hyper",
+ "log",
+ "serde",
+ "serde-aux",
+ "serde_json",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-bunyan-formatter",
+ "tracing-log 0.1.4",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -130,27 +151,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-template"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "axum",
- "config",
- "http",
- "hyper",
- "log",
- "serde",
- "serde-aux",
- "serde_json",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-bunyan-formatter",
- "tracing-log 0.1.4",
- "tracing-subscriber",
 ]
 
 [[package]]
