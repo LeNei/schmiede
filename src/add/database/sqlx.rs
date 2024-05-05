@@ -1,11 +1,10 @@
 use crate::{
-    add::{AddFeature, FileEditor},
+    add::{add_dependencies, write_config, AddFeature, Dependency, FileEditor},
     config::DatabaseType,
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 use askama::Template;
-use std::{fs, path::Path};
-use toml_edit::{value, Array, DocumentMut};
+use std::path::Path;
 
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
@@ -18,7 +17,7 @@ impl SqlxConfigTemplate {
         Self { database }
     }
 
-    fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
+    fn dependencies(&self) -> Vec<Dependency> {
         let db = match self.database {
             DatabaseType::PostgreSQL => "postgres",
         };
@@ -31,45 +30,6 @@ impl SqlxConfigTemplate {
             ("secrecy", "0.8.0", Some(vec!["serde"])),
             ("serde-aux", "4.1.2", None),
         ]
-    }
-
-    fn write_dependencies(&self, path: &Path) -> Result<()> {
-        let toml_path = path.join("Cargo.toml");
-        let toml_contents =
-            fs::read_to_string(&toml_path).with_context(|| "Failed to read Cargo.toml")?;
-
-        let mut manifest = toml_contents
-            .parse::<DocumentMut>()
-            .with_context(|| "Failed to parse Cargo.toml")?;
-
-        let dependencies = manifest
-            .get_mut("dependencies")
-            .ok_or(anyhow::anyhow!("Failed to get dependencies"))?;
-
-        for (name, version, features) in self.dependencies() {
-            if let Some(features) = features {
-                dependencies[name]["version"] = value(version);
-                let mut array = Array::default();
-                for feature in features {
-                    array.push(feature);
-                }
-
-                dependencies[name]["features"] = value(array);
-            } else {
-                dependencies[name] = value(version.to_string());
-            }
-        }
-
-        let updated_toml = manifest.to_string();
-        fs::write(toml_path, updated_toml).with_context(|| "Failed to write Cargo.toml")?;
-        Ok(())
-    }
-
-    fn write_config(&self, path: &Path) -> Result<()> {
-        let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
-        fs::write(path.join("src/config/database.rs"), rendered)
-            .with_context(|| "Failed to write sqlx.rs")?;
-        Ok(())
     }
 
     fn update_config(&self, path: &Path) -> Result<()> {
@@ -168,8 +128,8 @@ impl SqlxConfigTemplate {
 
 impl AddFeature for SqlxConfigTemplate {
     fn add_feature(&self, path: &Path) -> Result<()> {
-        self.write_dependencies(path)?;
-        self.write_config(path)?;
+        add_dependencies(path, self.dependencies())?;
+        write_config(path, self)?;
         self.update_config(path)?;
         self.update_startup(path)?;
         self.update_routes(path)?;

@@ -16,7 +16,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn from_file() -> Result<Self> {
+    fn _from_file() -> Result<Self> {
         let config = fs::read_to_string("schmiede.toml")?;
         let config: Config = toml::from_str(&config)?;
         Ok(config)

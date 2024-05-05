@@ -1,7 +1,9 @@
 pub mod database;
 
 use anyhow::{Context, Result};
+use askama::Template;
 use std::{fs, path::Path};
+use toml_edit::{value, Array, DocumentMut};
 
 pub trait AddFeature {
     fn add_feature(&self, path: &Path) -> Result<()>;
@@ -74,4 +76,47 @@ impl<'a> FileEditor<'a> {
         ))?;
         Ok(())
     }
+}
+
+pub type Dependency = (&'static str, &'static str, Option<Vec<&'static str>>);
+
+pub fn add_dependencies(path: &Path, dependencies: Vec<Dependency>) -> Result<()> {
+    let toml_path = path.join("Cargo.toml");
+    let toml_contents =
+        fs::read_to_string(&toml_path).with_context(|| "Failed to read Cargo.toml")?;
+
+    let mut manifest = toml_contents
+        .parse::<DocumentMut>()
+        .with_context(|| "Failed to parse Cargo.toml")?;
+
+    let deps = manifest
+        .get_mut("dependencies")
+        .ok_or(anyhow::anyhow!("Failed to get dependencies"))?;
+
+    for (name, version, features) in dependencies {
+        if let Some(features) = features {
+            deps[name]["version"] = value(version);
+            let mut array = Array::default();
+            for feature in features {
+                array.push(feature);
+            }
+
+            deps[name]["features"] = value(array);
+        } else {
+            deps[name] = value(version.to_string());
+        }
+    }
+
+    let updated_toml = manifest.to_string();
+    fs::write(toml_path, updated_toml).with_context(|| "Failed to write Cargo.toml")?;
+    Ok(())
+}
+
+pub fn write_config<T: Template>(path: &Path, template: &T) -> Result<()> {
+    let rendered = template
+        .render()
+        .with_context(|| "Failed to render template")?;
+    fs::write(path, rendered)
+        .with_context(|| format!("Failed to write file: {}", path.display()))?;
+    Ok(())
 }

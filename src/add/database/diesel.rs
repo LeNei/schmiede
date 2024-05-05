@@ -1,9 +1,10 @@
-use crate::{add::AddFeature, config::DatabaseType};
-use anyhow::{Context, Result};
+use crate::{
+    add::{add_dependencies, write_config, AddFeature, Dependency},
+    config::DatabaseType,
+};
+use anyhow::Result;
 use askama::Template;
-use std::fs;
 use std::path::Path;
-use toml_edit::{value, Array, DocumentMut};
 
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
@@ -16,7 +17,7 @@ impl DieselConfigTemplate {
         Self { database }
     }
 
-    fn dependencies(&self) -> Vec<(&str, &str, Option<Vec<&str>>)> {
+    fn dependencies(&self) -> Vec<Dependency> {
         let db = match self.database {
             DatabaseType::PostgreSQL => "postgres",
         };
@@ -28,49 +29,12 @@ impl DieselConfigTemplate {
             ("serde_aux", "4.1.2", None),
         ]
     }
-
-    fn write_dependencies(&self) -> Result<()> {
-        let toml_contents =
-            fs::read_to_string("Cargo.toml").with_context(|| "Failed to read Cargo.toml")?;
-
-        let mut manifest = toml_contents
-            .parse::<DocumentMut>()
-            .with_context(|| "Failed to parse Cargo.toml")?;
-
-        let dependencies = manifest
-            .get_mut("dependencies")
-            .ok_or(anyhow::anyhow!("Failed to get dependencies"))?;
-
-        for (name, version, features) in self.dependencies() {
-            if let Some(features) = features {
-                dependencies[name]["version"] = value(version);
-                let mut array = Array::default();
-                for feature in features {
-                    array.push(feature);
-                }
-
-                dependencies[name]["features"] = value(array);
-            } else {
-                dependencies[name] = value(version.to_string());
-            }
-        }
-
-        let updated_toml = manifest.to_string();
-        fs::write("Cargo.toml", updated_toml).with_context(|| "Failed to write Cargo.toml")?;
-        Ok(())
-    }
-
-    fn write_config(&self) -> Result<()> {
-        let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
-        fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
-        Ok(())
-    }
 }
 
 impl AddFeature for DieselConfigTemplate {
     fn add_feature(&self, path: &Path) -> Result<()> {
-        self.write_dependencies()?;
-        self.write_config()?;
+        add_dependencies(path, self.dependencies())?;
+        write_config(path, self)?;
         Ok(())
     }
 }
