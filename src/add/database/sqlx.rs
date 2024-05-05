@@ -1,4 +1,3 @@
-use super::UpdateDatabaseFiles;
 use crate::{
     add::{AddFeature, FileEditor},
     config::DatabaseType,
@@ -27,22 +26,17 @@ impl SqlxConfigTemplate {
             (
                 "sqlx",
                 "0.7.4",
-                Some(vec![
-                    "runtime-tokio-rustls",
-                    "macros",
-                    "migrate",
-                    "offline",
-                    db,
-                ]),
+                Some(vec!["runtime-tokio-rustls", "macros", "migrate", db]),
             ),
             ("secrecy", "0.8.0", Some(vec!["serde"])),
             ("serde-aux", "4.1.2", None),
         ]
     }
 
-    fn write_dependencies(&self) -> Result<()> {
+    fn write_dependencies(&self, path: &Path) -> Result<()> {
+        let toml_path = path.join("Cargo.toml");
         let toml_contents =
-            fs::read_to_string("Cargo.toml").with_context(|| "Failed to read Cargo.toml")?;
+            fs::read_to_string(&toml_path).with_context(|| "Failed to read Cargo.toml")?;
 
         let mut manifest = toml_contents
             .parse::<DocumentMut>()
@@ -67,26 +61,28 @@ impl SqlxConfigTemplate {
         }
 
         let updated_toml = manifest.to_string();
-        fs::write("Cargo.toml", updated_toml).with_context(|| "Failed to write Cargo.toml")?;
+        fs::write(toml_path, updated_toml).with_context(|| "Failed to write Cargo.toml")?;
         Ok(())
     }
 
-    fn write_config(&self) -> Result<()> {
+    fn write_config(&self, path: &Path) -> Result<()> {
         let rendered = self.render().with_context(|| "Failed to render sqlx.rs")?;
-        fs::write("src/config/database.rs", rendered).with_context(|| "Failed to write sqlx.rs")?;
+        fs::write(path.join("src/config/database.rs"), rendered)
+            .with_context(|| "Failed to write sqlx.rs")?;
         Ok(())
     }
 
     fn update_config(&self, path: &Path) -> Result<()> {
         let config_path = path.join("src/config/mod.rs");
 
-        let add_use = |lines: &mut Vec<&str>, i: usize| {
-            lines.insert(i, "use database::DatabaseTypeSettings;");
-            lines.insert(i, "use sqlx::PgPool;");
+        let add_use = |lines: &mut Vec<&str>, _: usize| {
+            lines.insert(3, "use database::DatabaseSettings;");
+            lines.insert(3, "use sqlx::PgPool;");
+            lines.insert(0, "mod database;");
         };
 
         let update_settings = |lines: &mut Vec<&str>, i: usize| {
-            lines.insert(i + 1, "    pub database: DatabaseTypeSettings,");
+            lines.insert(i + 1, "    pub database: DatabaseSettings,");
         };
 
         let update_context = |lines: &mut Vec<&str>, i: usize| {
@@ -97,6 +93,7 @@ impl SqlxConfigTemplate {
             if has_been_called[has_been_called.len() - 1] {
                 return;
             }
+            lines.push("#[derive(Clone)]");
             lines.push("pub struct ApiContext {");
             lines.push("    pub db: PgPool,");
             lines.push("}");
@@ -104,7 +101,6 @@ impl SqlxConfigTemplate {
 
         FileEditor::new(&config_path)
             .before_change(add_use)
-            .add_change(add_use, vec!["use"])
             .add_change(update_settings, vec!["pub struct Settings {"])
             .add_change(update_context, vec!["pub struct ApiContext {"])
             .after_change(add_context)
@@ -117,7 +113,7 @@ impl SqlxConfigTemplate {
         let startup_path = path.join("./src/startup.rs");
 
         let update_context = |lines: &mut Vec<&str>, i: usize| {
-            lines.insert(i, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
+            lines.insert(i + 1, "    db: settings.database.get_connection_pool(),");
         };
 
         FileEditor::new(&startup_path)
@@ -127,20 +123,44 @@ impl SqlxConfigTemplate {
                     return;
                 }
                 lines.insert(0, "use crate::config::ApiContext;");
-                let pos = lines.iter().position(|line| line.contains("pub async fn build"));
+                let pos = lines
+                    .iter()
+                    .position(|line| line.contains("pub async fn build"));
                 if let Some(pos) = pos {
-                    lines.insert(pos, "let api_context = ApiContext {");
-                    lines.insert(pos + 1, "    db: settings.database.get_connection_pool().context(\"Failed to connect to database\")?,");
-                    lines.insert(pos + 2, "};");
+                    lines.insert(pos + 1, "    let api_context = ApiContext {");
+                    lines.insert(
+                        pos + 2,
+                        "         db: settings.database.get_connection_pool(),",
+                    );
+                    lines.insert(pos + 3, "    };");
                 }
 
-                let pos = lines.iter().position(|line| line.contains("nest(\"/api\", api_routes())"));
+                let pos = lines
+                    .iter()
+                    .position(|line| line.contains("nest(\"/api\", api_routes())"));
                 if let Some(pos) = pos {
-                    lines.insert(pos, "   .with_state(api_context.clone())");
+                    lines.insert(pos + 1, "       .with_state(api_context.clone())");
                 }
+            })
+            .edit_file()?;
 
+        Ok(())
+    }
 
-            }).edit_file()?;
+    fn update_routes(&self, path: &Path) -> Result<()> {
+        // TODO: Make recursive for all files in routes directory
+        let routes_path = path.join("./src/routes/mod.rs");
+
+        let update_router = |lines: &mut Vec<&str>, i: usize| {
+            if let Some(line) = lines.get_mut(i) {
+                *line = "pub fn routes() -> Router<ApiContext> {";
+                lines.insert(0, "use crate::config::ApiContext;");
+            }
+        };
+
+        FileEditor::new(&routes_path)
+            .add_change(update_router, vec!["pub fn routes() -> Router {"])
+            .edit_file()?;
 
         Ok(())
     }
@@ -148,10 +168,11 @@ impl SqlxConfigTemplate {
 
 impl AddFeature for SqlxConfigTemplate {
     fn add_feature(&self, path: &Path) -> Result<()> {
-        self.write_dependencies()?;
-        self.write_config()?;
-        self.update_config(&path)?;
-        self.update_startup(&path)?;
+        self.write_dependencies(path)?;
+        self.write_config(path)?;
+        self.update_config(path)?;
+        self.update_startup(path)?;
+        self.update_routes(path)?;
         Ok(())
     }
 }

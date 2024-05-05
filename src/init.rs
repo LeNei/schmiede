@@ -15,7 +15,7 @@ pub enum Starters {
 #[derive(Parser, Debug)]
 pub struct InitArgs {
     #[clap(short, long)]
-    pub project_name: Option<String>,
+    pub name: Option<String>,
 
     #[clap(short, long, value_enum)]
     pub api_framework: Option<ApiFramework>,
@@ -28,7 +28,7 @@ pub struct InitArgs {
 }
 
 pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
-    let project_name = match args.project_name {
+    let project_name = match args.name {
         Some(name) => name,
         None => Input::with_theme(&theme)
             .with_prompt("What is the name of your project?")
