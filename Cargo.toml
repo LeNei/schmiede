@@ -19,3 +19,4 @@ indicatif = "0.17.8"
 serde = { version = "1.0.193", features = ["derive", "std"] }
 toml = "0.8.12"
 toml_edit = "0.22.11"
+walkdir = "2.5.0"

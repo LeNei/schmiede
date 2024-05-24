@@ -6,6 +6,8 @@ use anyhow::Result;
 use askama::Template;
 use std::path::Path;
 
+use super::{update_config_files, update_routes};
+
 #[derive(Template)]
 #[template(path = "./add/database/sqlx.rs.templ", escape = "html")]
 pub struct SqlxConfigTemplate {
@@ -33,9 +35,7 @@ impl SqlxConfigTemplate {
     }
 
     fn update_config(&self, path: &Path) -> Result<()> {
-        let config_path = path.join("src/config/mod.rs");
-
-        let add_use = |lines: &mut Vec<&str>, _: usize| {
+        let add_use = |lines: &mut Vec<&str>| {
             lines.insert(3, "use database::DatabaseSettings;");
             lines.insert(3, "use sqlx::PgPool;");
             lines.insert(0, "mod database;");
@@ -59,12 +59,14 @@ impl SqlxConfigTemplate {
             lines.push("}");
         };
 
-        FileEditor::new(&config_path)
+        FileEditor::new(&path.join("src/config/mod.rs"))
             .before_change(add_use)
             .add_change(update_settings, vec!["pub struct Settings {"])
             .add_change(update_context, vec!["pub struct ApiContext {"])
             .after_change(add_context)
             .edit_file()?;
+
+        update_config_files(path)?;
 
         Ok(())
     }
@@ -106,24 +108,6 @@ impl SqlxConfigTemplate {
 
         Ok(())
     }
-
-    fn update_routes(&self, path: &Path) -> Result<()> {
-        // TODO: Make recursive for all files in routes directory
-        let routes_path = path.join("./src/routes/mod.rs");
-
-        let update_router = |lines: &mut Vec<&str>, i: usize| {
-            if let Some(line) = lines.get_mut(i) {
-                *line = "pub fn routes() -> Router<ApiContext> {";
-                lines.insert(0, "use crate::config::ApiContext;");
-            }
-        };
-
-        FileEditor::new(&routes_path)
-            .add_change(update_router, vec!["pub fn routes() -> Router {"])
-            .edit_file()?;
-
-        Ok(())
-    }
 }
 
 impl AddFeature for SqlxConfigTemplate {
@@ -132,7 +116,7 @@ impl AddFeature for SqlxConfigTemplate {
         write_config(&path.join("src/config/database.rs"), self)?;
         self.update_config(path)?;
         self.update_startup(path)?;
-        self.update_routes(path)?;
+        update_routes(path)?;
         Ok(())
     }
 }

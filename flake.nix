@@ -44,6 +44,7 @@
             pkgs.rust-analyzer
             pkgs.cargo-watch
             pkgs.diesel-cli
+            pkgs.sqlx-cli
             pkgs.postgresql
             pkgs.bunyan-rs
             rust

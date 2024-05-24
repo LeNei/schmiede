@@ -10,12 +10,13 @@ pub trait AddFeature {
 }
 
 type ProcessFunction = fn(&mut Vec<&str>, usize) -> ();
+type BeforeFunction = fn(&mut Vec<&str>) -> ();
 type AfterFunction = fn(&mut Vec<&str>, Vec<bool>) -> ();
 
 struct FileEditor<'a> {
     file_path: &'a Path,
     changes: Vec<(ProcessFunction, Vec<&'a str>)>,
-    before_changes: Option<ProcessFunction>,
+    before_changes: Option<BeforeFunction>,
     after_changes: Option<AfterFunction>,
 }
 
@@ -34,7 +35,7 @@ impl<'a> FileEditor<'a> {
         self
     }
 
-    pub fn before_change(&mut self, change: ProcessFunction) -> &mut Self {
+    pub fn before_change(&mut self, change: BeforeFunction) -> &mut Self {
         self.before_changes = Some(change);
         self
     }
@@ -50,7 +51,7 @@ impl<'a> FileEditor<'a> {
         let mut lines = file.lines().collect::<Vec<_>>();
 
         if let Some(change) = self.before_changes {
-            change(&mut lines, 0);
+            change(&mut lines);
         }
 
         let mut has_been_called = vec![false; self.changes.len()];
@@ -75,6 +76,13 @@ impl<'a> FileEditor<'a> {
             self.file_path.display()
         ))?;
         Ok(())
+    }
+
+    pub fn create_file(&self, content: &str) -> Result<()> {
+        fs::write(self.file_path, content).context(format!(
+            "Failed to create file: {}",
+            self.file_path.display()
+        ))
     }
 }
 
