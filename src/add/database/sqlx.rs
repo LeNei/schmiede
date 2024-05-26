@@ -66,8 +66,6 @@ impl SqlxConfigTemplate {
             .after_change(add_context)
             .edit_file()?;
 
-        update_config_files(path)?;
-
         Ok(())
     }
 
@@ -105,6 +103,8 @@ impl SqlxConfigTemplate {
                 }
             })
             .edit_file()?;
+
+        update_config_files(path)?;
 
         Ok(())
     }

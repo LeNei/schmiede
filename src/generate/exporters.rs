@@ -1,6 +1,7 @@
-use super::template::ApiTemplate;
-
-use super::template::{DbDownTemplate, DbUpTemplate, ModelTemplate};
+use super::template::{
+    AxumDieselTemplate, AxumSqlxTemplate, DieselDownTemplate, DieselModelTemplate,
+    DieselUpTemplate, SqlxDownTemplate, SqlxModelTemplate, SqlxUpTemplate,
+};
 use anyhow::Result;
 use askama::Template;
 use chrono::Utc;
@@ -13,38 +14,49 @@ pub trait Export {
     fn export(&self) -> Result<()>;
 }
 
-impl Export for ModelTemplate<'_>
+impl Export for SqlxModelTemplate<'_>
 where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        let file_path = String::from("src/common/models.rs");
-
-        // Read existing file contents (if it exists)
-        let contents = read_to_string(&file_path)?;
-
-        // Check if the struct already exists
-        let struct_exists = contents
-            .lines()
-            .any(|line| line.starts_with(&format!("pub struct {} ", self.struct_name)));
-
-        if !struct_exists {
-            // Append to the file
-            let mut file = OpenOptions::new().append(true).open(&file_path)?;
-
-            let contents = self.render()?;
-
-            file.write_all(b"\n")?; // Add a newline if needed
-            file.write_all(&contents.into_bytes())?;
-            file.write_all(b"\n")?; // Add a newline if needed
-            Ok(())
-        } else {
-            anyhow::bail!("Struct already exists")
-        }
+        create_model_file(self.struct_name, &self.render()?.into_bytes())
     }
 }
 
-impl Export for DbUpTemplate<'_>
+impl Export for DieselModelTemplate<'_>
+where
+    Self: Template,
+{
+    fn export(&self) -> Result<()> {
+        create_model_file(self.struct_name, &self.render()?.into_bytes())
+    }
+}
+
+fn create_model_file(name: &str, content: &[u8]) -> Result<()> {
+    let file_path = String::from("src/common/models.rs");
+
+    // Read existing file contents (if it exists)
+    let contents = read_to_string(&file_path)?;
+
+    // Check if the struct already exists
+    let struct_exists = contents
+        .lines()
+        .any(|line| line.starts_with(&format!("pub struct {} ", name)));
+
+    if !struct_exists {
+        // Append to the file
+        let mut file = OpenOptions::new().append(true).open(&file_path)?;
+
+        file.write_all(b"\n")?; // Add a newline if needed
+        file.write_all(content)?;
+        file.write_all(b"\n")?; // Add a newline if needed
+        Ok(())
+    } else {
+        anyhow::bail!("Struct already exists")
+    }
+}
+
+impl Export for SqlxUpTemplate<'_>
 where
     Self: Template,
 {
@@ -53,7 +65,25 @@ where
     }
 }
 
-impl Export for DbDownTemplate<'_>
+impl Export for SqlxDownTemplate<'_>
+where
+    Self: Template,
+{
+    fn export(&self) -> Result<()> {
+        create_migration_file(self.name, "down", &self.render()?.into_bytes())
+    }
+}
+
+impl Export for DieselUpTemplate<'_>
+where
+    Self: Template,
+{
+    fn export(&self) -> Result<()> {
+        create_migration_file(self.name, "up", &self.render()?.into_bytes())
+    }
+}
+
+impl Export for DieselDownTemplate<'_>
 where
     Self: Template,
 {
@@ -81,7 +111,26 @@ fn create_migration_file(name: &str, ty: &str, content: &[u8]) -> Result<()> {
     Ok(())
 }
 
-impl Export for ApiTemplate<'_>
+impl Export for AxumDieselTemplate<'_>
+where
+    Self: Template,
+{
+    fn export(&self) -> Result<()> {
+        let file_path = format!("src/api/{}.rs", self.name.to_case(Case::Snake));
+
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(file_path)?;
+
+        let contents = self.render()?;
+
+        file.write_all(&contents.into_bytes())?;
+        Ok(())
+    }
+}
+
+impl Export for AxumSqlxTemplate<'_>
 where
     Self: Template,
 {

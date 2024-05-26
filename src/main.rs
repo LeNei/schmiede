@@ -18,7 +18,8 @@ struct Args {
 enum Commands {
     Init(init::InitArgs),
     Generate(generate::GenerateArgs),
-    Add,
+    #[clap(subcommand)]
+    Add(add::Features),
 }
 
 fn main() -> Result<()> {

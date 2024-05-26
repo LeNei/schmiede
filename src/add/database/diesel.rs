@@ -6,7 +6,7 @@ use anyhow::Result;
 use askama::Template;
 use std::path::Path;
 
-use super::update_routes;
+use super::{update_config_files, update_routes};
 
 #[derive(Template)]
 #[template(path = "./add/database/diesel.rs.templ", escape = "html")]
@@ -62,28 +62,6 @@ impl DieselConfigTemplate {
             .add_change(update_context, vec!["pub struct ApiContext {"])
             .after_change(add_context)
             .edit_file()?;
-
-        let add_config = |lines: &mut Vec<&str>, has_been_called: Vec<bool>| {
-            if has_been_called[0] {
-                return;
-            }
-            lines.push("database:");
-            lines.push("  username: postgres");
-            lines.push("  password: postgres");
-            lines.push("  port: 5432");
-            lines.push("  host: localhost");
-            lines.push("  database_name: postgres");
-            lines.push("  require_ssl: false");
-        };
-
-        FileEditor::new(&path.join("configuration/base.yaml"))
-            .add_change(|_, _| {}, vec!["database:"])
-            .after_change(add_config)
-            .edit_file()?;
-
-        FileEditor::new(&path.join(".env.local"))
-            .create_file("postgresql://postgres:postgres@localhost:5432/postgres")?;
-
         Ok(())
     }
 
@@ -121,6 +99,8 @@ impl DieselConfigTemplate {
                 }
             })
             .edit_file()?;
+
+        update_config_files(path)?;
 
         Ok(())
     }

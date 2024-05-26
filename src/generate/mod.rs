@@ -6,14 +6,15 @@ mod options;
 mod template;
 mod transformers;
 
+use crate::config::Config;
+
 use self::attribute::Attribute;
 use self::crud::CrudOperations;
 use self::data_types::IDType;
-use self::exporters::Export;
 use self::options::GenerateOptions;
-use self::template::{ApiTemplate, DbDownTemplate, DbUpTemplate, ModelTemplate};
+use self::template::{get_api_template, get_db_template, get_model_template};
 use self::transformers::{DataTypeTransformer, PostgresMigration, RustStruct};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use console::Term;
 use convert_case::{Case, Casing};
@@ -58,10 +59,16 @@ pub struct GenerateArgs {
 }
 
 pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> Result<()> {
+    let config = Config::from_file()?;
+
     let selected_options = match args.options {
         Some(options) => options,
         None => GenerateOptions::from_term(&term, &theme)?,
     };
+
+    if selected_options.iter().any(|o| *o == GenerateOptions::Sql) && config.database.is_none() {
+        anyhow::bail!("No database configuration found in config file. Please add a database configuration to the config file or select another option.");
+    }
 
     let operations: Option<CrudOperations> = match args.operations {
         Some(operations) => Some(operations),
@@ -107,35 +114,37 @@ pub fn generate_files(args: GenerateArgs, term: Term, theme: ColorfulTheme) -> R
     for export_option in selected_options {
         match export_option {
             GenerateOptions::Sql => {
-                let name = &name.to_case(Case::Snake);
-                let up_template = DbUpTemplate {
-                    name,
-                    // This is safe because the option requires attributes
-                    rows: get_rows(attributes.as_ref().unwrap(), export_option),
-                    // This is safe because the option requires an id
-                    id: id.clone().expect("Should be present if SQL selected"),
-                };
-                let down_template = DbDownTemplate { name };
-                up_template.export()?;
-                down_template.export()?;
+                let templates = get_db_template(
+                    &name,
+                    get_rows(attributes.as_ref().unwrap(), export_option),
+                    id.clone().expect("Should be present if SQL selected"),
+                    &config.database.clone().unwrap().database_driver,
+                );
+                for template in templates {
+                    template.export()?;
+                }
             }
             GenerateOptions::Struct => {
-                let model_template = ModelTemplate {
-                    // This is safe because the option requires an id
-                    id: id.clone().unwrap(),
-                    name: &name,
-                    struct_name: &name.to_case(Case::Pascal),
-                    // This is safe because the option requires attributes
-                    rows: get_rows(attributes.as_ref().unwrap(), export_option),
-                };
+                let struct_name = &name.to_case(Case::Pascal).clone();
+                let model_template = get_model_template(
+                    &name,
+                    struct_name,
+                    id.clone().expect("Should be present if Struct selected"),
+                    get_rows(attributes.as_ref().unwrap(), export_option),
+                    config.database.clone().unwrap().database_driver,
+                );
                 model_template.export()?;
             }
             GenerateOptions::Routes => {
-                let api_template = ApiTemplate {
-                    name: &name,
-                    struct_name: &name.to_case(Case::Pascal),
-                    crud_operations: operations.clone().context("No operations selected")?,
-                };
+                let struct_name = &name.to_case(Case::Pascal).clone();
+                let api_template = get_api_template(
+                    &name,
+                    struct_name,
+                    operations
+                        .clone()
+                        .expect("Should be present if Routes selected"),
+                    config.database.clone().unwrap().database_driver,
+                );
                 api_template.export()?;
             } /* Disable for now until base is implemented
               GenerateOptions::Admin => {

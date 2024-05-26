@@ -26,7 +26,7 @@ fn update_config_files(path: &Path) -> Result<()> {
         .edit_file()?;
 
     FileEditor::new(&path.join(".env.local"))
-        .create_file("postgresql://postgres:postgres@localhost:5432/postgres")?;
+        .create_file("DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres")?;
 
     Ok(())
 }
@@ -44,7 +44,6 @@ fn update_routes(path: &Path) -> Result<()> {
             continue; // Skip non-file entries or files that don't match the pattern
         }
 
-        println!("{}", file_path.display());
         let update_router = |lines: &mut Vec<&str>, i: usize| {
             if let Some(line) = lines.get_mut(i) {
                 *line = "pub fn routes() -> Router<ApiContext> {";

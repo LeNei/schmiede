@@ -2,7 +2,6 @@ use chrono::{offset::Utc, DateTime};
 use serde::{Serialize, Deserialize};
 use sqlx::FromRow;
 
-
 #[derive(FromRow, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct {{ struct_name }} {

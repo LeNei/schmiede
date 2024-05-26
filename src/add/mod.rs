@@ -1,9 +1,17 @@
 pub mod database;
 
+use crate::config;
 use anyhow::{Context, Result};
 use askama::Template;
+use clap::Subcommand;
 use std::{fs, path::Path};
 use toml_edit::{value, Array, DocumentMut};
+
+//TODO: Update schmiede.toml
+#[derive(Subcommand, Debug)]
+pub enum Features {
+    Database(config::Database),
+}
 
 pub trait AddFeature {
     fn add_feature(&self, path: &Path) -> Result<()>;

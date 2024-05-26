@@ -1,6 +1,7 @@
 use crate::add::database::{diesel::DieselConfigTemplate, sqlx::SqlxConfigTemplate};
 use crate::add::AddFeature;
 use anyhow::{Context, Result};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{default::Default, fs, str::FromStr};
@@ -16,7 +17,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn _from_file() -> Result<Self> {
+    pub fn from_file() -> Result<Self> {
         let config = fs::read_to_string("schmiede.toml")?;
         let config: Config = toml::from_str(&config)?;
         Ok(config)
@@ -142,10 +143,12 @@ impl FromStr for ApiFramework {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Parser, Deserialize, Serialize, Debug, Clone)]
 pub struct Database {
-    database_type: DatabaseType,
-    database_driver: DatabaseDriver,
+    #[clap(short = 't', long, value_enum)]
+    pub database_type: DatabaseType,
+    #[clap(short = 'd', long, value_enum)]
+    pub database_driver: DatabaseDriver,
 }
 
 impl Database {
