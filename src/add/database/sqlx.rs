@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use askama::Template;
-use std::path::Path;
+use std::{fs, path::Path};
 
 use super::{update_config_files, update_routes};
 
@@ -108,6 +108,46 @@ impl SqlxConfigTemplate {
 
         Ok(())
     }
+
+    fn add_updated_at(&self, path: &Path) -> Result<()> {
+        fs::create_dir(path.join("migrations"))?;
+        FileEditor::new(&path.join("migrations/20210101000000_initial_setup.up.sql")).create_file(
+            r#"
+-- add function for updated_at
+
+CREATE OR REPLACE FUNCTION manage_updated_at(_tbl regclass) RETURNS VOID AS $$
+BEGIN
+    EXECUTE format('CREATE TRIGGER set_updated_at BEFORE UPDATE ON %s
+                    FOR EACH ROW EXECUTE PROCEDURE sel_set_updated_at()', _tbl);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sel_set_updated_at() RETURNS trigger AS $$
+BEGIN
+    IF (
+        NEW IS DISTINCT FROM OLD AND
+        NEW.updated_at IS NOT DISTINCT FROM OLD.updated_at
+    ) THEN
+        NEW.updated_at := current_timestamp;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+"#,
+        )?;
+        FileEditor::new(&path.join("migrations/20210101000000_initial_setup.down.sql"))
+            .create_file(
+                r#"
+-- remove function for updated_at
+DROP FUNCTION IF EXISTS manage_updated_at(_tbl regclass);
+
+DROP FUNCTION IF EXISTS set_updated_at();
+
+"#,
+            )?;
+        Ok(())
+    }
 }
 
 impl AddFeature for SqlxConfigTemplate {
@@ -116,6 +156,7 @@ impl AddFeature for SqlxConfigTemplate {
         write_config(&path.join("src/config/database.rs"), self)?;
         self.update_config(path)?;
         self.update_startup(path)?;
+        self.add_updated_at(path)?;
         update_routes(path)?;
         Ok(())
     }

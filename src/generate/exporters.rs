@@ -2,7 +2,7 @@ use super::template::{
     AxumDieselTemplate, AxumSqlxTemplate, DieselDownTemplate, DieselModelTemplate,
     DieselUpTemplate, SqlxDownTemplate, SqlxModelTemplate, SqlxUpTemplate,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use askama::Template;
 use chrono::Utc;
 use convert_case::{Case, Casing};
@@ -35,17 +35,31 @@ where
 fn create_model_file(name: &str, content: &[u8]) -> Result<()> {
     let file_path = String::from("src/common/models.rs");
 
-    // Read existing file contents (if it exists)
-    let contents = read_to_string(&file_path)?;
+    let exists = Path::new(&file_path).exists();
+
+    if !exists {
+        create_dir_all(Path::new(&file_path).parent().unwrap())?;
+    }
 
     // Check if the struct already exists
-    let struct_exists = contents
-        .lines()
-        .any(|line| line.starts_with(&format!("pub struct {} ", name)));
+    let struct_exists = match exists {
+        true => {
+            // Read existing file contents (if it exists)
+            let contents = read_to_string(&file_path)?;
+            contents
+                .lines()
+                .any(|line| line.starts_with(&format!("pub struct {} ", name)))
+        }
+        false => false,
+    };
 
     if !struct_exists {
         // Append to the file
-        let mut file = OpenOptions::new().append(true).open(&file_path)?;
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(!exists)
+            .open(&file_path)
+            .context(format!("Failed to create model for {}", name))?;
 
         file.write_all(b"\n")?; // Add a newline if needed
         file.write_all(content)?;
@@ -61,7 +75,7 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        create_migration_file(self.name, "up", &self.render()?.into_bytes())
+        create_migration_file(self.name, false, "up", &self.render()?.into_bytes())
     }
 }
 
@@ -70,7 +84,7 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        create_migration_file(self.name, "down", &self.render()?.into_bytes())
+        create_migration_file(self.name, false, "down", &self.render()?.into_bytes())
     }
 }
 
@@ -79,7 +93,7 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        create_migration_file(self.name, "up", &self.render()?.into_bytes())
+        create_migration_file(self.name, true, "up", &self.render()?.into_bytes())
     }
 }
 
@@ -88,13 +102,31 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        create_migration_file(self.name, "down", &self.render()?.into_bytes())
+        create_migration_file(self.name, true, "down", &self.render()?.into_bytes())
     }
 }
 
-fn create_migration_file(name: &str, ty: &str, content: &[u8]) -> Result<()> {
-    let version = Utc::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let file_name = format!("migrations/{}_{}/{}.sql", version, name.to_lowercase(), ty);
+fn create_migration_file(name: &str, has_dir: bool, ty: &str, content: &[u8]) -> Result<()> {
+    let timestamp_format = match has_dir {
+        true => "%Y-%m-%d-%H%M%S",
+        false => "%Y%m%d%H%M%S",
+    };
+    let timestamp = Utc::now().format(timestamp_format).to_string();
+
+    let file_name = match has_dir {
+        true => format!(
+            "migrations/{}_{}/{}.sql",
+            timestamp,
+            name.to_lowercase(),
+            ty
+        ),
+        false => format!(
+            "migrations/{}_{}.{}.sql",
+            timestamp,
+            name.to_lowercase(),
+            ty
+        ),
+    };
     let file_path = Path::new(&file_name);
 
     if !file_path.exists() {
@@ -104,7 +136,8 @@ fn create_migration_file(name: &str, ty: &str, content: &[u8]) -> Result<()> {
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)
-        .open(file_path)?;
+        .open(file_path)
+        .context(format!("Failed to create migration for {}", name))?;
 
     file.write_all(content)?;
     file.write_all(b"\n")?; // Add a newline if needed
@@ -116,12 +149,13 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        let file_path = format!("src/api/{}.rs", self.name.to_case(Case::Snake));
+        let file_path = format!("src/routes/{}.rs", self.name.to_case(Case::Snake));
 
         let mut file = OpenOptions::new()
             .append(true)
             .create(true)
-            .open(file_path)?;
+            .open(file_path)
+            .context(format!("Failed to create template for {}", self.name))?;
 
         let contents = self.render()?;
 
@@ -135,12 +169,13 @@ where
     Self: Template,
 {
     fn export(&self) -> Result<()> {
-        let file_path = format!("src/api/{}.rs", self.name.to_case(Case::Snake));
+        let file_path = format!("src/routes/{}.rs", self.name.to_case(Case::Snake));
 
         let mut file = OpenOptions::new()
             .append(true)
             .create(true)
-            .open(file_path)?;
+            .open(file_path)
+            .context(format!("Failed to create template for {}", self.name))?;
 
         let contents = self.render()?;
 

@@ -57,7 +57,7 @@ pub fn get_db_template<'a>(
 }
 
 #[derive(Template)]
-#[template(path = "generate/models/sqlx.rs.templ", escape = "html")]
+#[template(path = "generate/models/sqlx.rs.templ", escape = "none")]
 pub struct SqlxModelTemplate<'a> {
     pub id: IDType,
     pub name: &'a str,
@@ -66,7 +66,7 @@ pub struct SqlxModelTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "generate/models/diesel.rs.templ", escape = "html")]
+#[template(path = "generate/models/diesel.rs.templ", escape = "none")]
 pub struct DieselModelTemplate<'a> {
     pub id: IDType,
     pub name: &'a str,
@@ -108,7 +108,7 @@ pub struct PageTemplate<'a> {
 */
 
 #[derive(Template)]
-#[template(path = "generate/api/axum_diesel.rs.templ", escape = "html")]
+#[template(path = "generate/api/axum_diesel.rs.templ", escape = "none")]
 pub struct AxumDieselTemplate<'a> {
     pub name: &'a str,
     pub struct_name: &'a str,
@@ -116,7 +116,7 @@ pub struct AxumDieselTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "generate/api/axum_sqlx.rs.templ", escape = "html")]
+#[template(path = "generate/api/axum_sqlx.rs.templ", escape = "none")]
 pub struct AxumSqlxTemplate<'a> {
     pub name: &'a str,
     pub struct_name: &'a str,
