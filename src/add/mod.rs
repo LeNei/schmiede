@@ -1,9 +1,10 @@
 pub mod database;
 
-use crate::config;
+use crate::config::{self, DatabaseDriver};
 use anyhow::{Context, Result};
 use askama::Template;
 use clap::Subcommand;
+use database::{diesel::DieselConfigTemplate, sqlx::SqlxConfigTemplate};
 use std::{fs, path::Path};
 use toml_edit::{value, Array, DocumentMut};
 
@@ -15,6 +16,27 @@ pub enum Features {
 
 pub trait AddFeature {
     fn add_feature(&self, path: &Path) -> Result<()>;
+}
+
+pub fn add_addon(feature: Features, update_config: bool) -> Result<()> {
+    match feature {
+        Features::Database(db) => {
+            let template: Box<dyn AddFeature> = match db.database_driver {
+                DatabaseDriver::Sqlx => Box::new(SqlxConfigTemplate::new(db.database_type.clone())),
+                DatabaseDriver::Diesel => {
+                    Box::new(DieselConfigTemplate::new(db.database_type.clone()))
+                }
+            };
+
+            template.add_feature(Path::new("."))?;
+            if update_config {
+                let mut config = config::Config::from_file()?;
+                config.database = Some(db);
+                config.update_config()?;
+            }
+        }
+    }
+    Ok(())
 }
 
 type ProcessFunction = fn(&mut Vec<&str>, usize) -> ();

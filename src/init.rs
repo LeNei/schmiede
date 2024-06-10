@@ -1,7 +1,12 @@
-use std::{path::Path, time::Duration};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use crate::{
-    config::{ApiFramework, ConfigBuilder, Database, DatabaseDriver, DatabaseType},
+    add::{add_addon, Features},
+    config::{ApiFramework, Config, ConfigBuilder, Database, DatabaseDriver, DatabaseType},
     generate::FromTerm,
 };
 use anyhow::{Context, Result};
@@ -72,23 +77,43 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
 
     let config = ConfigBuilder::new()
         .api_framework(api_framework)
-        .database(database)
+        .database(database.clone())
         .build();
 
     let pb_starter = ProgressBar::new_spinner();
     pb_starter.set_message("Creating project...");
     pb_starter.enable_steady_tick(Duration::from_millis(120));
-    let path = config.init_from_starter(&project_name)?;
+    let path = clone_starter(&config, &project_name)?;
     pb_starter.set_message("Creating project ✓");
     pb_starter.finish();
 
     let pb_addons = ProgressBar::new_spinner();
 
-    pb_addons.set_message("Preparing addons...");
-    pb_addons.enable_steady_tick(Duration::from_millis(120));
-    config.init_addons(&path)?;
-    pb_addons.set_message("Preparing addons ✓");
-    pb_addons.finish();
+    if database.is_some() {
+        pb_addons.set_message("Preparing addons...");
+        pb_addons.enable_steady_tick(Duration::from_millis(120));
+        add_addon(Features::Database(database.unwrap()), false)?;
+        pb_addons.set_message("Preparing addons ✓");
+        pb_addons.finish();
+    }
 
+    config.create_config_toml(&path)?;
     Ok(())
+}
+
+fn clone_starter(config: &Config, project_name: &str) -> Result<PathBuf> {
+    let temp_dir = Path::new("./temporary");
+    let mut fetch_options = git2::FetchOptions::new();
+    fetch_options.depth(1);
+    git2::build::RepoBuilder::new()
+        .fetch_options(fetch_options)
+        .clone("https://github.com/LeNei/schmiede", temp_dir)
+        .context("Failed to clone repo")?;
+
+    let source_folder = temp_dir.join(format!("{}/{}", "starters", config.api_framework));
+
+    fs::rename(source_folder, project_name).context("Failed to get starter")?;
+
+    fs::remove_dir_all(temp_dir).context("Failed to remove temporary folder")?;
+    Ok(Path::new(project_name).to_path_buf())
 }

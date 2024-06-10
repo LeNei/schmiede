@@ -1,9 +1,10 @@
-use crate::add::database::{diesel::DieselConfigTemplate, sqlx::SqlxConfigTemplate};
-use crate::add::AddFeature;
 use anyhow::{Context, Result};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::fmt::Display;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
 use std::{default::Default, fs, str::FromStr};
 
 use crate::generate::FromTerm;
@@ -23,49 +24,20 @@ impl Config {
         Ok(config)
     }
 
-    fn create_config_toml(&self, project_path: &Path) -> Result<()> {
+    pub fn update_config(&self) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open("schmiede.toml")?;
+
         let config = toml::to_string_pretty(self)?;
-        fs::write(project_path.join("schmiede.toml"), config).context("Failed to write config")?;
+        file.write_all(&config.into_bytes())?;
         Ok(())
     }
 
-    pub fn init_from_starter(&self, project_name: &str) -> Result<PathBuf> {
-        let temp_dir = Path::new("./temporary");
-        let mut fetch_options = git2::FetchOptions::new();
-        fetch_options.depth(1);
-        git2::build::RepoBuilder::new()
-            .fetch_options(fetch_options)
-            .clone("https://github.com/LeNei/schmiede", temp_dir)
-            .context("Failed to clone repo")?;
-
-        let source_folder =
-            temp_dir.join(format!("{}/{}", "starters", self.api_framework.to_string()));
-
-        fs::rename(source_folder, project_name).context("Failed to get starter")?;
-        let project_path = Path::new(project_name);
-        self.create_config_toml(project_path)?;
-
-        fs::remove_dir_all(temp_dir).context("Failed to remove temporary folder")?;
-        Ok(project_path.to_path_buf())
-    }
-
-    pub fn init_addons(&self, project_path: &Path) -> Result<()> {
-        match &self.database {
-            Some(database) => {
-                let template: Box<dyn AddFeature> = match database.database_driver {
-                    DatabaseDriver::Sqlx => {
-                        Box::new(SqlxConfigTemplate::new(database.database_type.clone()))
-                    }
-                    DatabaseDriver::Diesel => {
-                        Box::new(DieselConfigTemplate::new(database.database_type.clone()))
-                    }
-                };
-
-                template.add_feature(project_path)?;
-            }
-            None => {}
-        }
-
+    pub fn create_config_toml(&self, project_path: &Path) -> Result<()> {
+        let config = toml::to_string_pretty(self)?;
+        fs::write(project_path.join("schmiede.toml"), config).context("Failed to write config")?;
         Ok(())
     }
 }
@@ -108,10 +80,10 @@ pub enum ApiFramework {
     //Actix,
 }
 
-impl ToString for ApiFramework {
-    fn to_string(&self) -> String {
+impl Display for ApiFramework {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Axum => "axum".to_string(),
+            Self::Axum => write!(f, "axum"),
         }
     }
 }

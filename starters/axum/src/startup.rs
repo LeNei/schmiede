@@ -19,9 +19,7 @@ pub async fn build(settings: Settings) -> Result<()> {
         .collect();
 
     let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST, Method::PUT])
-        // allow requests from any origin
         .allow_origin(origins)
         .allow_credentials(true)
         .allow_headers([ACCEPT, CONTENT_TYPE]);
