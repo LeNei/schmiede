@@ -18,7 +18,7 @@ pub trait AddFeature {
     fn add_feature(&self, path: &Path) -> Result<()>;
 }
 
-pub fn add_addon(feature: Features, update_config: bool) -> Result<()> {
+pub fn add_addon(feature: Features, update_config: bool, folder_name: Option<&str>) -> Result<()> {
     match feature {
         Features::Database(db) => {
             let template: Box<dyn AddFeature> = match db.database_driver {
@@ -28,7 +28,11 @@ pub fn add_addon(feature: Features, update_config: bool) -> Result<()> {
                 }
             };
 
-            template.add_feature(Path::new("."))?;
+            match folder_name {
+                Some(folder) => template.add_feature(Path::new(folder))?,
+                None => template.add_feature(Path::new("."))?,
+            }
+
             if update_config {
                 let mut config = config::Config::from_file()?;
                 config.database = Some(db);

@@ -89,10 +89,10 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
 
     let pb_addons = ProgressBar::new_spinner();
 
-    if database.is_some() {
+    if let Some(database) = database {
         pb_addons.set_message("Preparing addons...");
         pb_addons.enable_steady_tick(Duration::from_millis(120));
-        add_addon(Features::Database(database.unwrap()), false)?;
+        add_addon(Features::Database(database), false, Some(&project_name))?;
         pb_addons.set_message("Preparing addons ✓");
         pb_addons.finish();
     }

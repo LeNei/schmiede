@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
+use tracing_subscriber;
 
 #[derive(Parser)]
 struct Args {
@@ -23,6 +24,7 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let args = Args::parse();
     let term = Term::buffered_stderr();
     let theme = ColorfulTheme::default();
@@ -30,7 +32,7 @@ fn main() -> Result<()> {
     match args.cmd {
         Some(Commands::Generate(args)) => generate::generate_files(args, term, theme),
         Some(Commands::Init(args)) => init::init_starter(args, term, theme),
-        Some(Commands::Add(args)) => add::add_addon(args, true),
+        Some(Commands::Add(args)) => add::add_addon(args, true, None),
         None => Ok(()),
     }
 }
