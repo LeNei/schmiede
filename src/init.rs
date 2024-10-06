@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     add::{add_addon, Features},
-    config::{ApiFramework, Config, ConfigBuilder, Database, DatabaseDriver, DatabaseType},
+    config::{ApiFramework, Config, Database, DatabaseDriver, DatabaseType},
     generate::FromTerm,
 };
 use anyhow::{Context, Result};
@@ -75,10 +75,12 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
         }
     };
 
-    let config = ConfigBuilder::new()
-        .api_framework(api_framework)
-        .database(database.clone())
-        .build();
+    let config_builder = Config::builder().api_framework(api_framework);
+
+    let config = match database.clone() {
+        Some(database) => config_builder.database(database).build(),
+        None => config_builder.build(),
+    };
 
     let pb_starter = ProgressBar::new_spinner();
     pb_starter.set_message("Creating project...");
@@ -92,7 +94,11 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
     if let Some(database) = database {
         pb_addons.set_message("Preparing addons...");
         pb_addons.enable_steady_tick(Duration::from_millis(120));
-        add_addon(Features::Database(database), false, Some(&project_name))?;
+        add_addon()
+            .feature(Features::Database(database))
+            .folder_name(&project_name)
+            .update_config(false)
+            .call()?;
         pb_addons.set_message("Preparing addons ✓");
         pb_addons.finish();
     }

@@ -3,6 +3,7 @@ pub mod database;
 use crate::config::{self, DatabaseDriver};
 use anyhow::{Context, Result};
 use askama::Template;
+use bon::builder;
 use clap::Subcommand;
 use database::{diesel::DieselConfigTemplate, sqlx::SqlxConfigTemplate};
 use std::{fs, path::Path};
@@ -18,7 +19,12 @@ pub trait AddFeature {
     fn add_feature(&self, path: &Path) -> Result<()>;
 }
 
-pub fn add_addon(feature: Features, update_config: bool, folder_name: Option<&str>) -> Result<()> {
+#[builder]
+pub fn add_addon(
+    feature: Features,
+    #[builder(default = true)] update_config: bool,
+    folder_name: Option<&str>,
+) -> Result<()> {
     match feature {
         Features::Database(db) => {
             let template: Box<dyn AddFeature> = match db.database_driver {

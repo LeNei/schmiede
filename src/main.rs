@@ -32,7 +32,7 @@ fn main() -> Result<()> {
     match args.cmd {
         Some(Commands::Generate(args)) => generate::generate_files(args, term, theme),
         Some(Commands::Init(args)) => init::init_starter(args, term, theme),
-        Some(Commands::Add(args)) => add::add_addon(args, true, None),
+        Some(Commands::Add(args)) => add::add_addon().feature(args).call(),
         None => Ok(()),
     }
 }

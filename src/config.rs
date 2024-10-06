@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use bon::Builder;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -9,7 +10,7 @@ use std::{default::Default, fs, str::FromStr};
 
 use crate::generate::FromTerm;
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Builder)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
@@ -39,36 +40,6 @@ impl Config {
         let config = toml::to_string_pretty(self)?;
         fs::write(project_path.join("schmiede.toml"), config).context("Failed to write config")?;
         Ok(())
-    }
-}
-
-#[derive(Deserialize, Serialize, Debug, Default)]
-pub struct ConfigBuilder {
-    #[serde(default)]
-    api_framework: ApiFramework,
-    database: Option<Database>,
-}
-
-impl ConfigBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn api_framework(&mut self, api_framework: ApiFramework) -> &mut Self {
-        self.api_framework = api_framework;
-        self
-    }
-
-    pub fn database(&mut self, database: Option<Database>) -> &mut Self {
-        self.database = database;
-        self
-    }
-
-    pub fn build(&self) -> Config {
-        Config {
-            api_framework: self.api_framework.clone(), // Assuming api_framework is now required
-            database: self.database.clone(),
-        }
     }
 }
 
