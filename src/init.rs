@@ -75,12 +75,10 @@ pub fn init_starter(args: InitArgs, term: Term, theme: ColorfulTheme) -> Result<
         }
     };
 
-    let config_builder = Config::builder().api_framework(api_framework);
-
-    let config = match database.clone() {
-        Some(database) => config_builder.database(database).build(),
-        None => config_builder.build(),
-    };
+    let config = Config::builder()
+        .api_framework(api_framework)
+        .maybe_database(database.clone())
+        .build();
 
     let pb_starter = ProgressBar::new_spinner();
     pb_starter.set_message("Creating project...");
